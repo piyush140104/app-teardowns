@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1600px;height:2232px;overflow:hidden}
+body{background:#080a0f;font-family:'Inter',-apple-system,sans-serif;color:#eef1f6;position:relative}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);background-size:50px 50px}
+.g1{position:absolute;width:1200px;height:1200px;border-radius:50%;background:radial-gradient(circle,rgba(88,101,242,.15) 0%,rgba(88,101,242,0) 62%);top:-550px;left:-300px}
+.g2{position:absolute;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(139,127,255,.09) 0%,rgba(139,127,255,0) 65%);top:1150px;right:-350px}
+.g3{position:absolute;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(0,200,150,.075) 0%,rgba(0,200,150,0) 65%);bottom:-430px;left:-250px}
+.w{position:relative;padding:54px 60px 46px}
+
+/* header */
+.hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:34px}
+.kick{font-family:'JetBrains Mono',monospace;font-size:13px;letter-spacing:3.2px;text-transform:uppercase;color:#6f7a8e;margin-bottom:14px}
+.kick b{color:#5865f2}
+h1{font-size:60px;font-weight:900;letter-spacing:-2.4px;line-height:1.02}
+h1 em{font-style:normal;color:#5865f2}
+.hsub{font-size:19px;color:#8b95a8;margin-top:13px;max-width:760px;line-height:1.45}
+.hsub b{color:#dde3ec;font-weight:600}
+.pill{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:1.5px;color:#a9b2c4;border:1px solid #242a36;background:#0f1218;padding:9px 14px;border-radius:7px;white-space:nowrap}
+.pill span{color:#8b7fff;font-weight:700}
+.pill+.pill{margin-top:9px}
+
+/* section */
+.sec{margin-top:40px}
+.sh{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.sn{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:2px;color:#5865f2;border:1px solid #2a3150;background:#121629;padding:5px 10px;border-radius:5px}
+.st{font-size:27px;font-weight:800;letter-spacing:-.9px}
+.sd{font-size:16px;color:#7d879c;margin-left:auto;font-weight:500}
+
+/* stack diagram */
+.stack{border:1px solid #1e2430;border-radius:15px;background:#0b0e14;padding:24px;position:relative}
+.tier{border-radius:11px;padding:17px 20px;position:relative;margin-bottom:12px}
+.tier:last-child{margin-bottom:0}
+.t-red{background:linear-gradient(90deg,rgba(180,35,24,.11),rgba(180,35,24,.035));border:1px solid #4a2320}
+.t-amb{background:linear-gradient(90deg,rgba(217,164,65,.11),rgba(217,164,65,.035));border:1px solid #4d3c1c}
+.t-grn{background:linear-gradient(90deg,rgba(17,122,74,.11),rgba(17,122,74,.035));border:1px solid #1d4433}
+.t-vio{background:linear-gradient(90deg,rgba(139,127,255,.09),rgba(139,127,255,.03));border:1px solid #363061}
+.trow{display:flex;align-items:center;gap:18px}
+.tbadge{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:1.6px;padding:5px 9px;border-radius:4px;white-space:nowrap;flex:0 0 auto}
+.b-red{background:#3a1d1a;color:#ff8a7a}.b-amb{background:#3a2d14;color:#f0bd5a}
+.b-grn{background:#11301f;color:#4fd394}.b-vio{background:#241f45;color:#a79bff}
+.tname{font-size:21px;font-weight:700;letter-spacing:-.4px;flex:0 0 auto}
+.tpath{font-family:'JetBrains Mono',monospace;font-size:13.5px;color:#737e92;flex:1}
+.tnote{font-size:15px;color:#9aa4b7;margin-top:9px;line-height:1.42;padding-left:0}
+.tnote b{color:#e6ebf3;font-weight:600}
+.tnote code{font-family:'JetBrains Mono',monospace;font-size:13px;color:#b9a6ff;background:#1a1730;padding:1.5px 6px;border-radius:4px}
+.arrow{text-align:center;font-size:17px;color:#4a5466;margin:-4px 0 8px;font-family:'JetBrains Mono',monospace;letter-spacing:.5px}
+.arrow b{color:#8b93ff;font-weight:600}
+.wall{display:flex;align-items:center;gap:13px;margin:-2px 0 10px;padding:0 4px}
+.wall .ln{flex:1;height:1px;background:repeating-linear-gradient(90deg,#39414f 0 7px,transparent 7px 14px)}
+.wall .lb{font-family:'JetBrains Mono',monospace;font-size:12.5px;letter-spacing:.4px;color:#9aa4b7;white-space:nowrap}
+
+/* bridge chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;padding:8px 13px;border-radius:7px;background:#11151d;border:1px solid #232a37;color:#c3cbd9}
+.chip.hot{background:#1b1426;border-color:#4a2f5e;color:#e3a7ff}
+.chip.warm{background:#191528;border-color:#3b3366;color:#b7abff}
+
+/* boot flow */
+.flow{display:flex;gap:0;align-items:stretch}
+.fstep{flex:1;position:relative;padding:0 17px}
+.fstep:first-child{padding-left:0}.fstep:last-child{padding-right:0}
+.fstep+.fstep:before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:1px;background:#1e2430}
+.fn{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;color:#5865f2;letter-spacing:1.6px;margin-bottom:9px}
+.ft{font-size:16.5px;font-weight:700;margin-bottom:7px;letter-spacing:-.3px;line-height:1.25}
+.fd{font-size:13.5px;color:#828c9f;line-height:1.42}
+.fd code{font-family:'JetBrains Mono',monospace;font-size:12px;color:#9aa4b7}
+
+/* rea grid */
+.rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.rc{border:1px solid #1f2531;border-radius:9px;background:#0c0f15;padding:13px 14px}
+.rc .rt{font-size:15.5px;font-weight:700;margin-bottom:5px;letter-spacing:-.25px}
+.rc .rr{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#6b7589;line-height:1.35}
+.rc.none{border-color:#1d3a2c}
+.rc.none .rt{color:#5fd49c}
+.rc.tool .rt{color:#f0bd5a}
+
+/* numbers */
+.nums{display:flex;border-top:1px solid #1e2430;border-bottom:1px solid #1e2430;padding:26px 0;margin-top:40px}
+.nm{flex:1;padding-right:22px}
+.nm+.nm{padding-left:24px;border-left:1px solid #1e2430}
+.nv{font-size:42px;font-weight:900;letter-spacing:-1.8px;line-height:1;margin-bottom:8px}
+.nk{font-size:13.5px;color:#828c9f;line-height:1.35;font-weight:500}
+
+/* footer */
+.ft2{display:flex;justify-content:space-between;align-items:center;margin-top:30px}
+.url{font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:600;color:#eef1f6}
+.url span{color:#5c6678}
+.via{font-family:'JetBrains Mono',monospace;font-size:14px;color:#6f7a8e;text-align:right;line-height:1.6}
+.via b{color:#8b7fff;font-weight:700}
+</style></head><body>
+<div class="grid"></div><div class="g1"></div><div class="g2"></div><div class="g3"></div>
+<div class="w">
+
+<div class="hd">
+  <div>
+    <div class="kick">App Teardown <b>/ 001</b> &nbsp;·&nbsp; static analysis &nbsp;·&nbsp; macOS arm64</div>
+    <h1>Anatomy of a <em>desktop app</em></h1>
+    <div class="hsub">Discord Desktop <b>0.0.380</b> taken apart with <b>REA</b> — what it's built from,
+      what it's allowed to do to your machine, and where the evidence stops.</div>
+  </div>
+  <div style="text-align:right">
+    <div class="pill">ANALYSED WITH <span>REA</span></div>
+    <div class="pill">2,032 FILES · 906,202 AST NODES</div>
+    <div class="pill">EVERY CLAIM CITED <span>file:line</span></div>
+  </div>
+</div>
+
+<!-- STACK -->
+<div class="sec">
+  <div class="sh"><div class="sn">01</div><div class="st">The stack</div>
+    <div class="sd">four execution tiers — two run with your full user authority</div></div>
+  <div class="stack">
+
+    <div class="tier t-red">
+      <div class="trow"><span class="tbadge b-red">FULL OS AUTHORITY</span>
+        <span class="tname">Launcher</span>
+        <span class="tpath">/Applications/Discord.app → app.asar · 39 source files</span></div>
+      <div class="tnote">Splash screen, updater, connectivity tests. <b>This is all you actually installed.</b>
+        It downloads everything else.</div>
+    </div>
+
+    <div class="arrow">↓ &nbsp; fetches + loads the real program &nbsp; <b>~/Library/Application Support/discord/0.0.380/</b></div>
+
+    <div class="tier t-red">
+      <div class="trow"><span class="tbadge b-red">FULL OS AUTHORITY</span>
+        <span class="tname">Main process</span>
+        <span class="tpath">core.asar → app/index.js · 24 browser modules</span></div>
+      <div class="tnote">Registers <b>136 privileged IPC endpoints</b>, builds the window, installs the
+        permission and navigation fences. Owns the filesystem, the keychain, the screen.</div>
+    </div>
+
+    <div class="arrow">↓ &nbsp; <code style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#f0bd5a">webPreferences.preload</code> &nbsp; — attached by filename, not by import</div>
+
+    <div class="tier t-amb">
+      <div class="trow"><span class="tbadge b-amb">NODE ENABLED · sandbox:false</span>
+        <span class="tname">Preload</span>
+        <span class="tpath">mainScreenPreload.js · 26 capability modules</span></div>
+      <div class="tnote"><b>The tier that matters.</b> Holds full Node in the same process as remote content —
+        reads your clipboard and filesystem directly, without ever crossing IPC.</div>
+    </div>
+
+    <div class="wall"><div class="ln"></div><div class="lb">contextBridge.exposeInMainWorld('DiscordNative', …) &nbsp;— the only door</div><div class="ln"></div></div>
+
+    <div class="tier t-grn">
+      <div class="trow"><span class="tbadge b-grn">ISOLATED · NO NODE</span>
+        <span class="tname">Renderer</span>
+        <span class="tpath">https://discord.com/app — loaded over the network, every launch</span></div>
+      <div class="tnote">Chat, voice UI, servers, settings. <b>None of it ships in the app.</b>
+        The desktop client is a browser window pointed at the website.</div>
+    </div>
+
+    <div class="arrow">↓ &nbsp; loaded by name at runtime, from a user-writable folder</div>
+
+    <div class="tier t-vio">
+      <div class="trow"><span class="tbadge b-vio">COMPILED · NOT ANALYSED</span>
+        <span class="tname">Native modules</span>
+        <span class="tpath">discord_voice 81 MB · discord_krisp 52 MB · dispatch · notifications</span></div>
+      <div class="tnote">Where voice capture and the Rust updater live. <b>The boundary of this report</b> —
+        it needs a decompiler, and that is said plainly rather than guessed at.</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BRIDGE -->
+<div class="sec">
+  <div class="sh"><div class="sn">02</div><div class="st">What the web page is handed</div>
+    <div class="sd">30 members · REA couldn't enumerate it — read by hand, zero unresolved</div></div>
+  <div class="chips">
+    <div class="chip hot">fileManager</div><div class="chip hot">clipboard</div>
+    <div class="chip hot">desktopCapture</div><div class="chip hot">safeStorage</div>
+    <div class="chip hot">nativeModules</div><div class="chip warm">webAuthn</div>
+    <div class="chip warm">clips</div><div class="chip warm">processUtils</div>
+    <div class="chip warm">powerMonitor</div><div class="chip warm">powerSaveBlocker</div>
+    <div class="chip warm">riotGames</div><div class="chip">window</div><div class="chip">os</div>
+    <div class="chip">app</div><div class="chip">ipc</div><div class="chip">http</div>
+    <div class="chip">process</div><div class="chip">settings</div><div class="chip">features</div>
+    <div class="chip">hardware</div><div class="chip">thumbar</div><div class="chip">spellCheck</div>
+    <div class="chip">gpuSettings</div><div class="chip">accessibility</div>
+    <div class="chip">crashReporter</div><div class="chip">userDataCache</div>
+    <div class="chip">isRenderer</div><div class="chip">remoteApp</div>
+    <div class="chip">remotePowerMonitor</div><div class="chip">setUncaughtExceptionHandler</div>
+  </div>
+</div>
+
+<!-- BOOT -->
+<div class="sec">
+  <div class="sh"><div class="sn">03</div><div class="st">Cold start</div>
+    <div class="sd">double-click to rendered UI</div></div>
+  <div class="flow">
+    <div class="fstep"><div class="fn">01</div><div class="ft">Launcher wakes</div>
+      <div class="fd">Reads <code>settings.json</code> — an unsigned file in your home folder that decides which servers it trusts</div></div>
+    <div class="fstep"><div class="fn">02</div><div class="ft">Phones home</div>
+      <div class="fd">GET <code>/api/modules/stable/versions.json</code> before any window exists</div></div>
+    <div class="fstep"><div class="fn">03</div><div class="ft">Updates modules</div>
+      <div class="fd">Downloads zips, accepts them on HTTP 200. No signature check in the JS path</div></div>
+    <div class="fstep"><div class="fn">04</div><div class="ft">Wires 136 handlers</div>
+      <div class="fd">Every privileged endpoint registered before a window can exist</div></div>
+    <div class="fstep"><div class="fn">05</div><div class="ft">Fences the window</div>
+      <div class="fd">Permissions deny-by-default, off-origin navigation blocked</div></div>
+    <div class="fstep"><div class="fn">06</div><div class="ft">Loads the website</div>
+      <div class="fd">Preload runs first, exposes the bridge, then <code>discord.com/app</code></div></div>
+  </div>
+</div>
+
+<!-- REA -->
+<div class="sec">
+  <div class="sh"><div class="sn">04</div><div class="st">What REA can take apart</div>
+    <div class="sd">one MCP server + CLI · github.com/morluto/rea</div></div>
+  <div class="rgrid">
+    <div class="rc none"><div class="rt">JavaScript / Electron</div><div class="rr">modules · IPC · preload boundaries</div></div>
+    <div class="rc none"><div class="rt">.NET assemblies</div><div class="rr">metadata · CIL · native boundaries</div></div>
+    <div class="rc none"><div class="rt">Go binaries</div><div class="rr">compiler · modules · build settings</div></div>
+    <div class="rc none"><div class="rt">Rust binaries</div><div class="rr">crates · versions · dependency edges</div></div>
+    <div class="rc none"><div class="rt">Mach-O / ELF / PE</div><div class="rr">sections · symbols · mitigations</div></div>
+    <div class="rc none"><div class="rt">Unity IL2CPP</div><div class="rr">type and method names</div></div>
+    <div class="rc none"><div class="rt">Godot PCK</div><div class="rr">archive inventory · extraction</div></div>
+    <div class="rc none"><div class="rt">Flutter apps</div><div class="rr">Dart snapshot · engine provenance</div></div>
+    <div class="rc none"><div class="rt">SQLite databases</div><div class="rr">tables · indexes · triggers · rows</div></div>
+    <div class="rc none"><div class="rt">App bundles</div><div class="rr">plists · digests · resources</div></div>
+    <div class="rc tool"><div class="rt">Native binaries</div><div class="rr">pseudocode + asm — needs Ghidra/Hopper/IDA</div></div>
+    <div class="rc tool"><div class="rt">Android APKs</div><div class="rr">decompiled methods — needs JADX + JDK</div></div>
+    <div class="rc tool"><div class="rt">Android devices</div><div class="rr">logs · dumps · screen — needs adb</div></div>
+    <div class="rc tool"><div class="rt">Websites</div><div class="rr">scripts · network · screenshots — Chrome</div></div>
+    <div class="rc tool"><div class="rt">HAR / pcap captures</div><div class="rr">requests · payloads · source locations</div></div>
+    <div class="rc tool"><div class="rt">Firmware images</div><div class="rr">regions · extraction — binwalk/unblob</div></div>
+    <div class="rc tool"><div class="rt">WASM artifacts</div><div class="rr">sections · imports · decoded WAT</div></div>
+    <div class="rc tool"><div class="rt">EVM bytecode</div><div class="rr">selectors · arguments · mutability</div></div>
+    <div class="rc tool"><div class="rt">Recorded crashes</div><div class="rr">threads · registers · mappings</div></div>
+    <div class="rc tool"><div class="rt">Process behaviour</div><div class="rr">output · filesystem · run comparison</div></div>
+  </div>
+  <div style="display:flex;gap:26px;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#6b7589">
+    <span><span style="color:#5fd49c;font-weight:700">●</span>&nbsp; works out of the box</span>
+    <span><span style="color:#f0bd5a;font-weight:700">●</span>&nbsp; needs an external tool you supply</span>
+    <span style="margin-left:auto;color:#5c6678">npx rea-agents@latest setup</span>
+  </div>
+</div>
+
+<!-- NUMBERS -->
+<div class="nums">
+  <div class="nm"><div class="nv" style="color:#fff">39</div><div class="nk">source files in the app<br>you actually installed</div></div>
+  <div class="nm"><div class="nv" style="color:#8b93ff">2,032</div><div class="nk">JS files in the shell that<br>downloads afterwards</div></div>
+  <div class="nm"><div class="nv" style="color:#fff">30</div><div class="nk">OS capabilities handed<br>to the web page</div></div>
+  <div class="nm"><div class="nv" style="color:#fff">136</div><div class="nk">privileged IPC endpoints<br>of 144 channel names</div></div>
+  <div class="nm"><div class="nv" style="color:#fff">18</div><div class="nk">external endpoints<br>found in the source</div></div>
+  <div class="nm"><div class="nv" style="color:#5fd49c">0</div><div class="nk">exploits published —<br>findings, not weapons</div></div>
+</div>
+
+<div class="ft2">
+  <div class="url"><span>github.com/</span>piyush140104<span>/</span>app-teardowns</div>
+  <div class="via">35-page report · diagrams · every claim with a file and a line<br>
+    powered by <b>REA</b> · github.com/morluto/rea · rea.tools</div>
+</div>
+
+</div></body></html>

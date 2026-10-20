@@ -16,6 +16,10 @@
 
 </div>
 
+<br>
+
+<a href="apps/discord/Discord-Desktop-Teardown.pdf"><img src="assets/discord-anatomy.png" alt="Anatomy of a desktop app — Discord Desktop 0.0.380 taken apart with REA: the four execution tiers, the 30-member native bridge, the cold-start sequence, and everything REA can analyse" width="100%"></a>
+
 > [!IMPORTANT]
 > Everything here is **static analysis of software already installed on a machine the analyst owns**,
 > for interoperability research, security education and software preservation. No exploit code, no
