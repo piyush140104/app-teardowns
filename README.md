@@ -2,116 +2,105 @@
 
 # App Teardowns
 
-### Understand any app on your machine — down to the line number.
+### Understanding how real apps work — one PDF at a time.
 
-**See a behaviour you can't explain. Find out exactly how it works, who it talks to, and what it's allowed to do to your computer.**
+**Pick an app. Read the PDF. Find out exactly how it's built, what it's allowed to do to your computer, and who it talks to — with a file and a line number behind every claim.**
 
+[![Built with REA](https://img.shields.io/badge/analysed_with-REA-5c4ee5?style=flat-square)](https://github.com/morluto/rea)
+[![Teardowns](https://img.shields.io/badge/teardowns-1-15171c?style=flat-square)](#the-apps)
 [![License: MIT](https://img.shields.io/badge/tools-MIT-f4c430?style=flat-square)](LICENSE)
 [![Writeups: CC BY 4.0](https://img.shields.io/badge/writeups-CC_BY_4.0-2b5fd9?style=flat-square)](LICENSE)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-3776ab?style=flat-square&logo=python&logoColor=white)](tools/)
 [![No exploit code](https://img.shields.io/badge/no_exploit_code-enforced-117a4a?style=flat-square)](DISCLAIMER.md)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-6b3fa0?style=flat-square)](apps/_template/METHOD.md)
 
-**[Teardowns](#teardowns) · [Quick start](#quick-start) · [How a teardown works](#how-a-teardown-works) · [What you can take apart](#what-you-can-take-apart) · [Highlights](#highlights) · [FAQ](#faq) · [Method](apps/_template/METHOD.md)**
-
-<code>python3 tools/asarq.py grep core.asar "contextIsolation|sandbox|nodeIntegration"</code>
+**[The apps](#the-apps) · [How these are made](#how-these-are-made) · [Reading a report](#reading-a-report) · [Do it yourself](#do-it-yourself) · [Coming next](#coming-next) · [FAQ](#faq)**
 
 </div>
 
 > [!IMPORTANT]
 > Everything here is **static analysis of software already installed on a machine the analyst owns**,
 > for interoperability research, security education and software preservation. No exploit code, no
-> DRM circumvention, no credential access. Read [DISCLAIMER.md](DISCLAIMER.md) before using any of
-> it — and before adding a teardown of your own.
+> DRM circumvention, no credential access. Read [DISCLAIMER.md](DISCLAIMER.md) first.
 
 ---
 
-You can *use* software. You usually can't *read* it. A desktop app is a sealed box: you see the
-buttons, never the wiring — what it's permitted to do to your filesystem, which servers it was
-built to reach, which switches its developers left in and never documented.
+You can *use* software. You usually can't *read* it. A desktop app is a sealed box — you see the
+buttons, never the wiring. What it's permitted to do to your filesystem. Which servers it was built
+to reach. Which switches its developers left in and never documented.
 
-This repo opens the box. Each teardown reconstructs how an app is actually assembled and publishes
-the evidence alongside the conclusion, so you can check the work instead of trusting it. Every
-claim cites a **file and a line number**. Where the evidence runs out, the writeup says so.
+This repo opens the box, one app at a time, and publishes the result as a **report you can
+actually sit down and read**. Every claim cites a file and a line number, so you can check the
+work instead of trusting it. Where the evidence runs out, the report says so instead of guessing.
 
-## Teardowns
+The heavy lifting is done with **[REA](https://github.com/morluto/rea)** — an open-source MCP
+server and CLI that reverse-engineers anything from app behaviour down to native binaries.
 
-| App | Version | What's covered | Report |
+## The apps
+
+| App | Version | The report | What's inside |
 | --- | --- | --- | --- |
-| **Discord Desktop** | `0.0.380` · macOS arm64 | Two-archive architecture · the 30-member `DiscordNative` bridge · 136 privileged IPC endpoints · permission & navigation fencing · update pipeline · 18 external endpoints · 20+ undocumented settings | **[Read →](apps/discord/)** · [PDF (35 pp)](apps/discord/Discord-Desktop-Teardown.pdf) · [Findings](apps/discord/findings.md) |
+| <img src="https://cdn.simpleicons.org/discord/5865F2" width="16"> **Discord Desktop** | `0.0.380`<br>macOS arm64 | **[📄 PDF — 35 pages](apps/discord/Discord-Desktop-Teardown.pdf)**<br>[Summary](apps/discord/) · [Findings](apps/discord/findings.md) | The app in `/Applications` is only a launcher — the real 9 MB shell is downloaded into your home folder. One bridge object hands the website 30 OS capabilities. 136 privileged endpoints. Permission fencing that's genuinely good, with one deliberate hole for Google sign-in. Module updates with no signature check. 18 external endpoints, 20+ undocumented settings. |
 
-More apps are in progress. Request one in [issues](../../issues), or
-[write one](apps/_template/METHOD.md).
+*One down. [More coming](#coming-next) — and [requests welcome](../../issues).*
 
-## Quick start
+## How these are made
 
-### Find the real code
+Two stages, and they do different jobs.
 
-For Electron apps it is rarely where you first look:
+### 1 · REA maps the terrain
 
-```bash
-ls /Applications/<App>.app/Contents/Resources/        # app.asar — often just a launcher
-ls ~/Library/Application\ Support/<app>/              # frequently the real payload
-```
+[**REA**](https://github.com/morluto/rea) (`rea-agents`) is an open-source reverse-engineering
+toolkit that plugs into an AI agent over MCP, or runs straight from your terminal. It handles
+native binaries, Electron and JavaScript apps, .NET assemblies, Android APKs, websites, network
+captures and more — and it returns findings with the evidence attached rather than a confident
+summary.
 
-If the bundled archive holds only a megabyte or two of source, it's a downloader and the actual
-program lives elsewhere. Chase it before you read a single line — Discord's entire product shell
-is 9 MB in your home folder, not in `/Applications`.
-
-### Open it without unpacking it
+On the Discord teardown, one command did the structural survey:
 
 ```bash
-python3 tools/asarq.py stats core.asar
+npx rea-agents@latest analyze-javascript-application \
+  ~/Library/Application\ Support/discord/0.0.380/modules/discord_desktop_core/core.asar --json
 ```
 
-`asarq.py` reads straight out of the archive — no unpacking 2,400 files to disk, no temp
-directories, line numbers that match what you cite in a report. Pure standard library.
-
-### The four commands that open any Electron app
-
-```bash
-python3 tools/asarq.py stats core.asar                                      # how big is the real surface
-python3 tools/asarq.py list  core.asar | grep -v node_modules               # what is hand-written
-python3 tools/asarq.py grep  core.asar "contextIsolation|sandbox|preload"   # the security posture
-python3 tools/asarq.py grep  core.asar "ipcMain\.(on|handle)"               # the privileged API
+```
+2,159 entries · 2,032 JavaScript files parsed · 906,202 AST nodes visited · 8,288 findings
+→ located the contextBridge, the IPC graph, the Electron process boundaries, the endpoints
 ```
 
-Thirty seconds, and you know the size of the attack surface, how the window is fenced, and every
-operation the app will perform on request. Try it on VS Code, Slack, Postman, Notion or WhatsApp —
-they all open the same way.
+That's the map: where the bridge is, where the privileged channels are, which files matter out of
+two thousand.
 
-### Read a file with real line numbers
+### 2 · Then the map gets walked
 
-```bash
-python3 tools/asarq.py cat core.asar app/mainScreen.js 335 560
-```
+REA is honest about what it can't resolve, and that's where the manual work starts. On Discord it
+reported the native bridge as `members: []`, `unknown_members: 1` — it found the `contextBridge`
+call but couldn't enumerate it, because the object is assembled from `require()` expressions
+rather than written as literal properties.
 
-Full tooling reference in [tools/README.md](tools/README.md).
+So the bridge was read by hand, and all **30 members** resolved, zero unresolved. Same for every
+line number, every permission handler, every security judgement in the report.
 
-## How a teardown works
+**That division is the method.** A tool that tells you what it doesn't know is worth more than one
+that fills the gap with a guess — and the gap is where the interesting findings live.
 
-```
-  locate the real payload ─────► inventory ──────► dependency graph
-                                                          │
-                                                          ▼
-   feature-to-file map ◄──── data & event flows ◄──── call graph
-            │
-            ▼
-   security boundaries ──► network inventory ──► config & hidden switches
-            │
-            ▼
-   blind spots (what could NOT be resolved) ──► findings ──► open questions
-```
+[`tools/asarq.py`](tools/) is the small helper built for stage 2: it reads files straight out of an
+Electron archive without unpacking 2,400 of them to disk, so cited line numbers match the original.
 
-Twelve steps, same order every time, so two teardowns can be read side by side. The checklist is
-[apps/_template/METHOD.md](apps/_template/METHOD.md) — not a summary of the method, the actual
-checklist used to produce the reports here.
+## Reading a report
 
-The step most writeups skip is the second-to-last. **Recording what you could not resolve** is what
-separates a teardown from a guess: compiled binaries you didn't decompile, remote code you can't
-see, objects built dynamically that static analysis can't enumerate.
+The PDF is the real artifact. Each one runs the same sixteen sections in the same order, so two
+apps can be read side by side:
 
-### Every finding carries a confidence label
+> executive summary → architecture → file inventory → dependency graph → call graph →
+> data flows → event flows → **security boundaries** → network inventory → runtime limits →
+> configuration & hidden switches → **blind spots** → feature-to-file map → findings →
+> open questions → reproduction steps
+
+Diagrams are included — trust boundaries, dependency graphs, and sequence diagrams for the flows
+that matter. You don't need to be a reverse engineer to follow it; every technical finding is
+restated in plain English and says why it matters.
+
+**Every finding carries a confidence label** — because a report that admits what it doesn't know is
+the only kind worth reading:
 
 | Label | Meaning |
 | --- | --- |
@@ -120,10 +109,7 @@ see, objects built dynamically that static analysis can't enumerate.
 | **Tentative** | One line of evidence; plausible alternative readings exist |
 | **Unknown** | Evidence unavailable — compiled code, remote code, or needs runtime observation |
 
-A teardown that says *Unknown* ten times is worth more than one that says *Confirmed* fifty times
-and is wrong twice.
-
-### And every finding is classified
+**And every finding is classified** — including the ones that turn out to be nothing:
 
 | Class | Meaning |
 | --- | --- |
@@ -133,62 +119,83 @@ and is wrong twice.
 | **Unknown** | Can't be settled without evidence this analysis didn't have |
 | **Positive** | A defence that is correctly built |
 
-## What you can take apart
+## Do it yourself
 
-What a teardown gives you per target type, and what you need on your machine to produce it:
+### Install REA
 
-| Target | What a teardown recovers | Requirements |
+```bash
+npx rea-agents@latest setup
+```
+
+Needs Node.js 22.19+, 24.11+ or 26+. It registers with Claude Code, Codex, Cursor, Gemini CLI and
+others, or you can drive it straight from the terminal. Full instructions at
+[rea.tools](https://rea.tools/) and [github.com/morluto/rea](https://github.com/morluto/rea).
+
+### Find the real code first
+
+For Electron apps it is rarely where you'd look:
+
+```bash
+ls /Applications/<App>.app/Contents/Resources/        # app.asar — often just a launcher
+ls ~/Library/Application\ Support/<app>/              # frequently the real payload
+```
+
+If the bundled archive holds only a megabyte or two of source, it's a downloader and the real
+program lives elsewhere. Discord's entire product shell is 9 MB in your home folder, not in
+`/Applications` — miss that and you analyse the wrong thing.
+
+### Survey it
+
+```bash
+npx rea-agents@latest analyze-javascript-application /path/to/app.asar --json
+```
+
+### Then read it
+
+```bash
+python3 tools/asarq.py stats core.asar                                      # how big is the real surface
+python3 tools/asarq.py list  core.asar | grep -v node_modules               # what is hand-written
+python3 tools/asarq.py grep  core.asar "contextIsolation|sandbox|preload"   # the security posture
+python3 tools/asarq.py grep  core.asar "ipcMain\.(on|handle)"               # the privileged API
+python3 tools/asarq.py cat   core.asar app/mainScreen.js 335 560            # read with line numbers
+```
+
+Thirty seconds and you know the size of the surface, how the window is fenced, and every operation
+the app will perform on request. Try it on VS Code, Slack, Postman, Notion or WhatsApp — they all
+open the same way.
+
+Full reference: [tools/README.md](tools/README.md) · Checklist: [apps/_template/METHOD.md](apps/_template/METHOD.md)
+
+## Coming next
+
+Candidates, roughly in order of how much there is to find:
+
+| App | Why it's interesting | Status |
 | --- | --- | --- |
-| **Electron / `.asar` apps** | Process tiers, preload bridge, full IPC surface, permission and navigation handling, every hardcoded endpoint | None — [`tools/asarq.py`](tools/) and Python 3.8+ |
-| **Plain JavaScript / Node apps** | Module graph, imports, routes, native add-on boundaries | None |
-| **Packaged app bundles** | File inventory, digests, plists, bundle anatomy, embedded resources | None |
-| **Config & settings stores** | Undocumented switches, defaults, which code paths they change | None |
-| **Source maps, when shipped** | Original file and symbol names behind a bundle | None |
-| **.NET assemblies** | Metadata, CIL, declared native boundaries | None (static) |
-| **Go / Rust binaries** | Embedded toolchain version, modules, dependency graph | None (static) |
-| **Android APKs** | Manifest, classes, decompiled methods | A JDK and a headless decompiler |
-| **Native binaries** | Pseudocode, assembly, strings, symbols, cross-references | Ghidra (free), Hopper or IDA |
-| **Saved network captures** | Requests, responses, exposed payloads | A HAR or pcap you captured yourself |
+| **Slack** | Electron, enterprise data handling, large native bridge | Planned |
+| **Spotify** | CEF rather than Electron — a different shape entirely | Planned |
+| **Notion** | Local-first sync, offline cache, clipboard bridge | Planned |
+| **Postman** | Handles your API credentials; worth knowing where they live | Planned |
+| **WhatsApp Desktop** | E2E messaging client — what the desktop shell can reach | Planned |
+| **Android ride/food apps** | APK + traffic shape; needs JADX | Exploring |
 
-The first five need nothing but this repo. That covers most desktop apps you actually use, because
-most of them are Electron.
-
-## Highlights
-
-Three findings from the Discord teardown, picked because each one changed the answer.
-
-### The app you installed isn't the app that runs
-
-`/Applications/Discord.app` contains a **launcher** — 39 source files. The real 9 MB shell is
-downloaded separately into `~/Library/Application Support/discord/`, which is why Discord updates
-itself without ever asking for an admin password, and why the code that actually executes sits in a
-user-writable directory.
-
-[Read the architecture section →](apps/discord/README.md#nine-things-worth-knowing)
-
-### A bridge that static analysis said was unreadable
-
-Automated tooling reported the native bridge as `members: []`, `unknown_members: 1` — it found the
-`contextBridge` call and gave up, because the object is assembled from `require()` expressions
-rather than written as literal properties. Reading `mainScreenPreload.js:20-48` by hand resolved
-**all 30 members, zero unresolved**: filesystem, clipboard, screen capture, OS keychain,
-native-module installation, WebAuthn.
-
-[Read the full enumeration →](apps/discord/README.md#verified-counts)
-
-### A vulnerability that turned out not to be one
-
-`moduleUpdater.js:728` joins archive-controlled filenames onto a destination path with no
-sanitisation — textbook zip-slip, and any scanner will flag it. It's safe anyway, because the
-bundled `yauzl` rejects `..` segments before emitting an entry.
-
-It's reported as a **mitigated** finding precisely so the false positive is on the record — and
-because the guarantee lives in a dependency rather than in Discord's code, which means it could
-vanish in a library upgrade with nothing visibly changing.
-
-[Read all findings →](apps/discord/findings.md)
+Want one prioritised, or have an app you're curious about?
+**[Open an issue](../../issues).**
 
 ## FAQ
+
+<details>
+<summary><strong>What exactly does REA do, and what did you do?</strong></summary>
+
+REA produced the structural survey — parsing 2,032 JavaScript files, walking 906,202 AST nodes,
+and locating the bridge, the IPC graph, the process boundaries and the endpoints. That's the map.
+
+Everything cited at line level — the bridge enumeration, the permission handlers, the update
+pipeline, the security classifications — came from reading those files directly, because REA
+explicitly reported the bridge as unresolvable. The appendix of each PDF spells out which tool
+produced which finding.
+
+</details>
 
 <details>
 <summary><strong>Is reverse engineering legal?</strong></summary>
@@ -197,46 +204,42 @@ In many jurisdictions, yes — and for interoperability it's explicitly protecte
 (DMCA §1201(f) in the US, Article 6 of the EU Software Directive). Courts have upheld it
 repeatedly: *Sega v. Accolade*, *Sony v. Connectix*, *Google v. Oracle*.
 
-That is not a universal permission. Protection varies by jurisdiction and purpose, a product's
-terms of service may prohibit it regardless of what the law allows, and **understanding how
-something works is legal while copying its code is not**. Full picture in
-[DISCLAIMER.md](DISCLAIMER.md).
+That's not a universal permission. Protection varies by jurisdiction and purpose, a product's terms
+of service may prohibit it regardless of what the law allows, and **understanding how something
+works is legal while copying its code is not**. Full picture in [DISCLAIMER.md](DISCLAIMER.md).
 
 </details>
 
 <details>
-<summary><strong>Do these teardowns contain exploits?</strong></summary>
+<summary><strong>Do these reports contain exploits?</strong></summary>
 
 No. Findings describe design properties and weaknesses with enough precision to be verified and
-fixed, and no further. No proof-of-concept code, no weaponisation, no working attack chains. It's
-rule 4 of [the house rules](#house-rules) and it's enforced on contributions.
+fixed, and no further. No proof-of-concept code, no weaponisation, no working attack chains.
 
-If something here looks genuinely exploitable, report it to the vendor rather than opening an
-issue.
+If something looks genuinely exploitable, it goes to the vendor before it goes here.
 
 </details>
 
 <details>
 <summary><strong>Why static analysis only?</strong></summary>
 
-Because it's reproducible and it's honest about its limits. Anyone can re-run the commands in an
+Because it's reproducible and honest about its limits. Anyone can re-run the commands in an
 appendix against their own copy and get the same output.
 
-Runtime analysis is allowed in a teardown when it's done in an isolated environment with test
-accounts — but it must be kept **visibly separate** from static findings. A report that blurs
-"this code can do X" into "this app did X" isn't worth reading.
+Runtime analysis is allowed when done in an isolated environment with test accounts — but it must
+stay **visibly separate** from static findings. A report that blurs "this code can do X" into "this
+app did X" isn't worth reading.
 
 </details>
 
 <details>
-<summary><strong>Why does a finding say "Unknown" instead of giving an answer?</strong></summary>
+<summary><strong>Why does a finding say "Unknown" instead of answering?</strong></summary>
 
-Because the evidence wasn't there. Compiled binaries that weren't decompiled, code that runs on a
+Because the evidence wasn't there — compiled binaries that weren't decompiled, code running on a
 remote server, objects built at runtime that no static pass can enumerate.
 
-Filling those gaps with a confident guess is the single most common failure in published
-teardowns. Every report here ends with a list of open questions and the specific test that would
-close each one.
+Filling those gaps with a confident guess is the most common failure in published teardowns. Every
+report ends with a list of open questions and the specific test that would close each one.
 
 </details>
 
@@ -245,15 +248,7 @@ close each one.
 
 Understanding is yours to use; expression isn't. Copyright attaches to the code itself, so anything
 you build should be written clean-room — from a behavioural description, never from copied source.
-That distinction is what kept Compaq, Samba and WINE on the right side of the line.
-
-</details>
-
-<details>
-<summary><strong>Which apps are you doing next?</strong></summary>
-
-Open an [issue](../../issues) with the app and what you're curious about. Electron apps are fastest
-because the tooling here covers them end to end; anything needing a decompiler takes longer.
+That distinction kept Compaq, Samba and WINE on the right side of the line.
 
 </details>
 
@@ -261,26 +256,25 @@ because the tooling here covers them end to end; anything needing a decompiler t
 <summary><strong>I'm a vendor and I think something here is wrong.</strong></summary>
 
 Open an issue or get in touch. Corrections are made promptly and credited. Several entries in the
-Discord teardown already exist *because* an earlier reading turned out to be wrong — getting
-corrected is how this gets better.
+Discord report exist *because* an earlier reading turned out to be wrong.
 
 </details>
 
 ## House rules
 
-These aren't decoration. They're why the writeups are worth reading.
+These aren't decoration. They're why the reports are worth reading.
 
-1. **Never fabricate.** No invented file names, line numbers, functions, endpoints or observations. If a line number can't be verified, it doesn't ship.
+1. **Never fabricate.** No invented file names, line numbers, functions, endpoints or observations. If it can't be verified, it doesn't ship.
 2. **Capability ≠ behaviour.** A function that *can* read your clipboard is not evidence that your clipboard *was* read.
 3. **Static ≠ runtime.** A URL in source is not a network request. If no traffic was captured, the report says "not observed."
 4. **No exploit code.** Precise enough to verify and fix. No further.
 5. **Report the good too.** Defences that are correctly built get written up beside the gaps. A findings list with no positives is a distorted picture of how an app is engineered.
-6. **Correct the record out loud.** Where an earlier assumption or an automated tool got something wrong, the correction is stated explicitly rather than quietly patched. Those are often the most interesting entries.
+6. **Correct the record out loud.** Where an earlier assumption or an automated tool got something wrong, the correction is stated explicitly rather than quietly patched.
 
 ## Contributing
 
 Copy [`apps/_template/`](apps/_template/) to `apps/<your-app>/`, work through
-[`METHOD.md`](apps/_template/METHOD.md), add a row to [Teardowns](#teardowns), open a PR.
+[`METHOD.md`](apps/_template/METHOD.md), add a row to [The apps](#the-apps), open a PR.
 
 The template ships with the classification tables and per-finding structure already in place, so a
 new teardown is fill-in-the-blanks rather than re-deciding the format. Reports are written in HTML
@@ -294,12 +288,12 @@ and rendered to PDF with headless Chrome:
 
 Diagrams are Mermaid, rendered at print time.
 
-## Documentation
+## Credits
 
-- **[Method](apps/_template/METHOD.md)** — the 12-step checklist, with the non-negotiables
-- **[Tools](tools/README.md)** — `asarq.py` reference, plus how to census IPC handlers
-- **[Disclaimer](DISCLAIMER.md)** — scope, legal picture, responsible disclosure
-- **[Discord teardown](apps/discord/)** — the worked example
+- **[REA](https://github.com/morluto/rea)** by [@morluto](https://github.com/morluto) — the
+  reverse-engineering toolkit behind the structural analysis. MIT licensed.
+  [rea.tools](https://rea.tools/)
+- Everything else in this repo by [@piyush140104](https://github.com/piyush140104).
 
 ## Disclaimer
 
